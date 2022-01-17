@@ -60,22 +60,35 @@ class PeriodClosingVoucher(AccountsController):
 			make_gl_entries(gl_entries)
 
 	def get_gl_entries(self):
-		gl_entries = []
 		pl_accounts = self.get_pl_balances()
 
-		for acc in pl_accounts:
-			if flt(acc.bal_in_company_currency):
-				gl_entries.append(self.get_gl_dict({
-					"account": acc.account,
-					"cost_center": acc.cost_center,
-					"finance_book": acc.finance_book,
-					"account_currency": acc.account_currency,
-					"debit_in_account_currency": abs(flt(acc.bal_in_account_currency)) if flt(acc.bal_in_account_currency) < 0 else 0,
-					"debit": abs(flt(acc.bal_in_company_currency)) if flt(acc.bal_in_company_currency) < 0 else 0,
-					"credit_in_account_currency": abs(flt(acc.bal_in_account_currency)) if flt(acc.bal_in_account_currency) > 0 else 0,
-					"credit": abs(flt(acc.bal_in_company_currency)) if flt(acc.bal_in_company_currency) > 0 else 0
-				}, item=acc))
-
+		gl_entries = [
+		    self.get_gl_dict(
+		        {
+		            "account":
+		            acc.account,
+		            "cost_center":
+		            acc.cost_center,
+		            "finance_book":
+		            acc.finance_book,
+		            "account_currency":
+		            acc.account_currency,
+		            "debit_in_account_currency":
+		            abs(flt(acc.bal_in_account_currency))
+		            if flt(acc.bal_in_account_currency) < 0 else 0,
+		            "debit":
+		            abs(flt(acc.bal_in_company_currency))
+		            if flt(acc.bal_in_company_currency) < 0 else 0,
+		            "credit_in_account_currency":
+		            abs(flt(acc.bal_in_account_currency))
+		            if flt(acc.bal_in_account_currency) > 0 else 0,
+		            "credit":
+		            abs(flt(acc.bal_in_company_currency))
+		            if flt(acc.bal_in_company_currency) > 0 else 0,
+		        },
+		        item=acc,
+		    ) for acc in pl_accounts if flt(acc.bal_in_company_currency)
+		]
 		if gl_entries:
 			gle_for_net_pl_bal = self.get_pnl_gl_entry(pl_accounts)
 			gl_entries += gle_for_net_pl_bal

@@ -164,8 +164,8 @@ class PurchaseInvoice(BuyingController):
 	def validate_credit_to_acc(self):
 		if not self.credit_to:
 			self.credit_to = get_party_account("Supplier", self.supplier, self.company)
-			if not self.credit_to:
-				self.raise_missing_debit_credit_account_error("Supplier", self.supplier)
+		if not self.credit_to:
+			self.raise_missing_debit_credit_account_error("Supplier", self.supplier)
 
 		account = frappe.db.get_value("Account", self.credit_to,
 			["account_type", "report_type", "account_currency"], as_dict=True)
@@ -188,7 +188,8 @@ class PurchaseInvoice(BuyingController):
 		check_list = []
 
 		for d in self.get('items'):
-			if d.purchase_order and not d.purchase_order in check_list and not d.purchase_receipt:
+			if (d.purchase_order and d.purchase_order not in check_list
+			    and not d.purchase_receipt):
 				check_list.append(d.purchase_order)
 				check_on_hold_or_closed_status('Purchase Order', d.purchase_order)
 
@@ -243,7 +244,7 @@ class PurchaseInvoice(BuyingController):
 			stock_items = self.get_stock_items()
 
 		asset_items = [d.is_fixed_asset for d in self.items if d.is_fixed_asset]
-		if len(asset_items) > 0:
+		if asset_items:
 			asset_received_but_not_billed = self.get_company_default("asset_received_but_not_billed")
 
 		if self.update_stock:
@@ -270,31 +271,29 @@ class PurchaseInvoice(BuyingController):
 							item.idx, frappe.bold(warehouse_account[item.warehouse]["account"]), frappe.bold(item.expense_account), frappe.bold(item.warehouse))
 						frappe.msgprint(msg, title=_("Expense Head Changed"))
 					item.expense_account = warehouse_account[item.warehouse]["account"]
-				else:
-					# check if 'Stock Received But Not Billed' account is credited in Purchase receipt or not
-					if item.purchase_receipt:
-						negative_expense_booked_in_pr = frappe.db.sql("""select name from `tabGL Entry`
+				elif item.purchase_receipt:
+					negative_expense_booked_in_pr = frappe.db.sql("""select name from `tabGL Entry`
 							where voucher_type='Purchase Receipt' and voucher_no=%s and account = %s""",
-							(item.purchase_receipt, stock_not_billed_account))
+						(item.purchase_receipt, stock_not_billed_account))
 
-						if negative_expense_booked_in_pr:
-							if for_validate and item.expense_account and item.expense_account != stock_not_billed_account:
-								msg = _("Row {0}: Expense Head changed to {1} because expense is booked against this account in Purchase Receipt {2}").format(
-									item.idx, frappe.bold(stock_not_billed_account), frappe.bold(item.purchase_receipt))
-								frappe.msgprint(msg, title=_("Expense Head Changed"))
-
-							item.expense_account = stock_not_billed_account
-					else:
-						# If no purchase receipt present then book expense in 'Stock Received But Not Billed'
-						# This is done in cases when Purchase Invoice is created before Purchase Receipt
+					if negative_expense_booked_in_pr:
 						if for_validate and item.expense_account and item.expense_account != stock_not_billed_account:
-							msg = _("Row {0}: Expense Head changed to {1} as no Purchase Receipt is created against Item {2}.").format(
-								item.idx, frappe.bold(stock_not_billed_account), frappe.bold(item.item_code))
-							msg += "<br>"
-							msg += _("This is done to handle accounting for cases when Purchase Receipt is created after Purchase Invoice")
+							msg = _("Row {0}: Expense Head changed to {1} because expense is booked against this account in Purchase Receipt {2}").format(
+								item.idx, frappe.bold(stock_not_billed_account), frappe.bold(item.purchase_receipt))
 							frappe.msgprint(msg, title=_("Expense Head Changed"))
 
 						item.expense_account = stock_not_billed_account
+				else:
+					# If no purchase receipt present then book expense in 'Stock Received But Not Billed'
+					# This is done in cases when Purchase Invoice is created before Purchase Receipt
+					if for_validate and item.expense_account and item.expense_account != stock_not_billed_account:
+						msg = _("Row {0}: Expense Head changed to {1} as no Purchase Receipt is created against Item {2}.").format(
+							item.idx, frappe.bold(stock_not_billed_account), frappe.bold(item.item_code))
+						msg += "<br>"
+						msg += _("This is done to handle accounting for cases when Purchase Receipt is created after Purchase Invoice")
+						frappe.msgprint(msg, title=_("Expense Head Changed"))
+
+					item.expense_account = stock_not_billed_account
 
 			elif item.is_fixed_asset and not is_cwip_accounting_enabled(asset_category):
 				asset_category_account = get_asset_category_account('fixed_asset_account', item=item.item_code,

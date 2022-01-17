@@ -46,8 +46,8 @@ class GLEntry(Document):
 			self.validate_currency()
 
 	def on_update(self):
-		adv_adj = self.flags.adv_adj
 		if not self.flags.from_repost:
+			adv_adj = self.flags.adv_adj
 			self.validate_account_details(adv_adj)
 			self.validate_dimensions_for_pl_and_bs()
 			self.validate_allowed_dimensions()
@@ -100,17 +100,17 @@ class GLEntry(Document):
 		account_type = frappe.db.get_value("Account", self.account, "report_type")
 
 		for dimension in get_checks_for_pl_and_bs_accounts():
-			if account_type == "Profit and Loss" \
-				and self.company == dimension.company and dimension.mandatory_for_pl and not dimension.disabled:
-				if not self.get(dimension.fieldname):
-					frappe.throw(_("Accounting Dimension <b>{0}</b> is required for 'Profit and Loss' account {1}.")
-						.format(dimension.label, self.account))
+			if (account_type == "Profit and Loss" and self.company == dimension.company
+			    and dimension.mandatory_for_pl and not dimension.disabled
+			    and not self.get(dimension.fieldname)):
+				frappe.throw(_("Accounting Dimension <b>{0}</b> is required for 'Profit and Loss' account {1}.")
+					.format(dimension.label, self.account))
 
-			if account_type == "Balance Sheet" \
-				and self.company == dimension.company and dimension.mandatory_for_bs and not dimension.disabled:
-				if not self.get(dimension.fieldname):
-					frappe.throw(_("Accounting Dimension <b>{0}</b> is required for 'Balance Sheet' account {1}.")
-						.format(dimension.label, self.account))
+			if (account_type == "Balance Sheet" and self.company == dimension.company
+			    and dimension.mandatory_for_bs and not dimension.disabled
+			    and not self.get(dimension.fieldname)):
+				frappe.throw(_("Accounting Dimension <b>{0}</b> is required for 'Balance Sheet' account {1}.")
+					.format(dimension.label, self.account))
 
 	def validate_allowed_dimensions(self):
 		dimension_filter_map = get_dimension_filter_map()
@@ -127,10 +127,9 @@ class GLEntry(Document):
 					if self.get(dimension) and self.get(dimension) not in value['allowed_dimensions']:
 						frappe.throw(_("Invalid value {0} for {1} against account {2}").format(
 							frappe.bold(self.get(dimension)), frappe.bold(frappe.unscrub(dimension)), frappe.bold(self.account)), InvalidAccountDimensionError)
-				else:
-					if self.get(dimension) and self.get(dimension) in value['allowed_dimensions']:
-						frappe.throw(_("Invalid value {0} for {1} against account {2}").format(
-							frappe.bold(self.get(dimension)), frappe.bold(frappe.unscrub(dimension)), frappe.bold(self.account)), InvalidAccountDimensionError)
+				elif self.get(dimension) and self.get(dimension) in value['allowed_dimensions']:
+					frappe.throw(_("Invalid value {0} for {1} against account {2}").format(
+						frappe.bold(self.get(dimension)), frappe.bold(frappe.unscrub(dimension)), frappe.bold(self.account)), InvalidAccountDimensionError)
 
 	def check_pl_account(self):
 		if self.is_opening=='Yes' and \

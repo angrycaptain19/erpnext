@@ -30,10 +30,10 @@ def get_report_filters(report_filters):
 	return filters
 
 def get_report_fields():
-	fields = []
-	for p_field in ['name', 'supplier', 'company', 'posting_date', 'currency']:
-		fields.append('`tabPurchase Invoice`.`{}`'.format(p_field))
-
+	fields = [
+	    '`tabPurchase Invoice`.`{}`'.format(p_field) for p_field in
+	    ['name', 'supplier', 'company', 'posting_date', 'currency']
+	]
 	for c_field in ['item_code', 'item_name', 'uom', 'qty', 'received_qty', 'rate', 'amount']:
 		fields.append('`tabPurchase Invoice Item`.`{}`'.format(c_field))
 

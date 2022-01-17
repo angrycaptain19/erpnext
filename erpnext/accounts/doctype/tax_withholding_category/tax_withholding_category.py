@@ -119,17 +119,28 @@ def get_tax_withholding_details(tax_withholding_category, posting_date, company)
 	for account_detail in tax_withholding.accounts:
 		if company == account_detail.company:
 			return frappe._dict({
-				"tax_withholding_category": tax_withholding_category,
-				"account_head": account_detail.account,
-				"rate": tax_rate_detail.tax_withholding_rate,
-				"from_date": tax_rate_detail.from_date,
-				"to_date": tax_rate_detail.to_date,
-				"threshold": tax_rate_detail.single_threshold,
-				"cumulative_threshold": tax_rate_detail.cumulative_threshold,
-				"description": tax_withholding.category_name if tax_withholding.category_name else tax_withholding_category,
-				"consider_party_ledger_amount": tax_withholding.consider_party_ledger_amount,
-				"tax_on_excess_amount": tax_withholding.tax_on_excess_amount,
-				"round_off_tax_amount": tax_withholding.round_off_tax_amount
+			    "tax_withholding_category":
+			    tax_withholding_category,
+			    "account_head":
+			    account_detail.account,
+			    "rate":
+			    tax_rate_detail.tax_withholding_rate,
+			    "from_date":
+			    tax_rate_detail.from_date,
+			    "to_date":
+			    tax_rate_detail.to_date,
+			    "threshold":
+			    tax_rate_detail.single_threshold,
+			    "cumulative_threshold":
+			    tax_rate_detail.cumulative_threshold,
+			    "description":
+			    tax_withholding.category_name or tax_withholding_category,
+			    "consider_party_ledger_amount":
+			    tax_withholding.consider_party_ledger_amount,
+			    "tax_on_excess_amount":
+			    tax_withholding.tax_on_excess_amount,
+			    "round_off_tax_amount":
+			    tax_withholding.round_off_tax_amount,
 			})
 
 def get_tax_withholding_rates(tax_withholding, posting_date):
@@ -421,21 +432,26 @@ def get_invoice_total_without_tcs(inv, tax_details):
 	return inv.grand_total - tcs_tax_row_amount
 
 def get_tds_amount_from_ldc(ldc, parties, pan_no, tax_details, posting_date, net_total):
-	tds_amount = 0
 	limit_consumed = frappe.db.get_value('Purchase Invoice', {
 		'supplier': ('in', parties),
 		'apply_tds': 1,
 		'docstatus': 1
 	}, 'sum(net_total)')
 
-	if is_valid_certificate(
-		ldc.valid_from, ldc.valid_upto,
-		posting_date, limit_consumed,
-		net_total, ldc.certificate_limit
-	):
-		tds_amount = get_ltds_amount(net_total, limit_consumed, ldc.certificate_limit, ldc.rate, tax_details)
-
-	return tds_amount
+	return (get_ltds_amount(
+	    net_total,
+	    limit_consumed,
+	    ldc.certificate_limit,
+	    ldc.rate,
+	    tax_details,
+	) if is_valid_certificate(
+	    ldc.valid_from,
+	    ldc.valid_upto,
+	    posting_date,
+	    limit_consumed,
+	    net_total,
+	    ldc.certificate_limit,
+	) else 0)
 
 def get_debit_note_amount(suppliers, from_date, to_date, company=None):
 
@@ -455,17 +471,11 @@ def get_debit_note_amount(suppliers, from_date, to_date, company=None):
 def get_ltds_amount(current_amount, deducted_amount, certificate_limit, rate, tax_details):
 	if current_amount < (certificate_limit - deducted_amount):
 		return current_amount * rate/100
-	else:
-		ltds_amount = (certificate_limit - deducted_amount)
-		tds_amount = current_amount - ltds_amount
+	ltds_amount = (certificate_limit - deducted_amount)
+	tds_amount = current_amount - ltds_amount
 
-		return ltds_amount * rate/100 + tds_amount * tax_details.rate/100
+	return ltds_amount * rate/100 + tds_amount * tax_details.rate/100
 
 def is_valid_certificate(valid_from, valid_upto, posting_date, deducted_amount, current_amount, certificate_limit):
-	valid = False
-
-	if ((getdate(valid_from) <= getdate(posting_date) <= getdate(valid_upto)) and
-			certificate_limit > deducted_amount):
-		valid = True
-
-	return valid
+	return (getdate(valid_from) <= getdate(posting_date) <=
+	        getdate(valid_upto)) and certificate_limit > deducted_amount

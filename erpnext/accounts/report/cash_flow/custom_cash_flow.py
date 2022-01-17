@@ -85,42 +85,46 @@ def setup_mappers(mappers):
 			for account in accounts if account[5]]
 
 		account_types_labels = sorted(
-			set(
-				(d['label'], d['is_working_capital'], d['is_income_tax_liability'], d['is_income_tax_expense'])
-					for d in account_types
-			),
-			key=lambda x: x[1]
+		    {(
+		        d['label'],
+		        d['is_working_capital'],
+		        d['is_income_tax_liability'],
+		        d['is_income_tax_expense'],
+		    )
+		     for d in account_types},
+		    key=lambda x: x[1],
 		)
 
 		fc_adjustment_labels = sorted(
-			set(
-				[(d['label'], d['is_finance_cost'], d['is_finance_cost_adjustment'])
-					for d in finance_costs_adjustments if d['is_finance_cost_adjustment']]
-			),
-			key=lambda x: x[2]
+		    {(d['label'], d['is_finance_cost'], d['is_finance_cost_adjustment'])
+		     for d in finance_costs_adjustments if d['is_finance_cost_adjustment']},
+		    key=lambda x: x[2],
 		)
 
 		unique_liability_labels = sorted(
-			set(
-				[(d['label'], d['is_income_tax_liability'], d['is_income_tax_expense'])
-					for d in tax_liabilities]
-			),
-			key=lambda x: x[0]
+		    {(
+		        d['label'],
+		        d['is_income_tax_liability'],
+		        d['is_income_tax_expense'],
+		    )
+		     for d in tax_liabilities},
+		    key=lambda x: x[0],
 		)
 
 		unique_expense_labels = sorted(
-			set(
-				[(d['label'], d['is_income_tax_liability'], d['is_income_tax_expense'])
-					for d in tax_expenses]
-			),
-			key=lambda x: x[0]
+		    {(
+		        d['label'],
+		        d['is_income_tax_liability'],
+		        d['is_income_tax_expense'],
+		    )
+		     for d in tax_expenses},
+		    key=lambda x: x[0],
 		)
 
 		unique_finance_costs_labels = sorted(
-			set(
-				[(d['label'], d['is_finance_cost']) for d in finance_costs]
-			),
-			key=lambda x: x[0]
+		    {(d['label'], d['is_finance_cost'])
+		     for d in finance_costs},
+		    key=lambda x: x[0],
 		)
 
 		for label in account_types_labels:
@@ -268,8 +272,8 @@ def calculate_adjustment(filters, non_expense_mapper, expense_mapper, use_accumu
 	expense_data = _get_account_type_based_data(
 		filters, expense_accounts, period_list, use_accumulated_values)
 
-	data = _calculate_adjustment(non_expense_closing, non_expense_opening, expense_data)
-	return data
+	return _calculate_adjustment(non_expense_closing, non_expense_opening,
+	                             expense_data)
 
 
 def _calculate_adjustment(non_expense_closing, non_expense_opening, expense_data):

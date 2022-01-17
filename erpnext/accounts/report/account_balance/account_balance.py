@@ -15,7 +15,7 @@ def execute(filters=None):
 	return columns, data
 
 def get_columns(filters):
-	columns = [
+	return [
 		{
 			"label": _("Account"),
 			"fieldtype": "Link",
@@ -39,8 +39,6 @@ def get_columns(filters):
 			"width": 100
 		}
 	]
-
-	return columns
 
 def get_conditions(filters):
 	conditions = {}

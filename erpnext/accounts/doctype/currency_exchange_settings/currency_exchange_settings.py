@@ -38,14 +38,11 @@ class CurrencyExchangeSettings(Document):
 		if frappe.flags.in_test:
 			return None, None
 
-		params = {}
-		for row in self.req_params:
-			params[row.key] = row.value.format(
+		params = {row.key: row.value.format(
 				transaction_date=nowdate(),
 				to_currency='INR',
 				from_currency='USD'
-			)
-
+			) for row in self.req_params}
 		api_url = self.api_endpoint.format(
 			transaction_date=nowdate(),
 			to_currency='INR',

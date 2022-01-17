@@ -177,33 +177,30 @@ class OpeningInvoiceCreationTool(Document):
 		invoices = self.get_invoices()
 		if len(invoices) < 50:
 			return start_import(invoices)
-		else:
-			from frappe.core.page.background_jobs.background_jobs import get_info
-			from frappe.utils.scheduler import is_scheduler_inactive
+		from frappe.core.page.background_jobs.background_jobs import get_info
+		from frappe.utils.scheduler import is_scheduler_inactive
 
-			if is_scheduler_inactive() and not frappe.flags.in_test:
-				frappe.throw(_("Scheduler is inactive. Cannot import data."), title=_("Scheduler Inactive"))
+		if is_scheduler_inactive() and not frappe.flags.in_test:
+			frappe.throw(_("Scheduler is inactive. Cannot import data."), title=_("Scheduler Inactive"))
 
-			enqueued_jobs = [d.get("job_name") for d in get_info()]
-			if self.name not in enqueued_jobs:
-				enqueue(
-					start_import,
-					queue="default",
-					timeout=6000,
-					event="opening_invoice_creation",
-					job_name=self.name,
-					invoices=invoices,
-					now=frappe.conf.developer_mode or frappe.flags.in_test
-				)
+		enqueued_jobs = [d.get("job_name") for d in get_info()]
+		if self.name not in enqueued_jobs:
+			enqueue(
+				start_import,
+				queue="default",
+				timeout=6000,
+				event="opening_invoice_creation",
+				job_name=self.name,
+				invoices=invoices,
+				now=frappe.conf.developer_mode or frappe.flags.in_test
+			)
 
 def start_import(invoices):
 	errors = 0
 	names = []
 	for idx, d in enumerate(invoices):
 		try:
-			invoice_number = None
-			if d.invoice_number:
-				invoice_number = d.invoice_number
+			invoice_number = d.invoice_number or None
 			publish(idx, len(invoices), d.doctype)
 			doc = frappe.get_doc(d)
 			doc.flags.ignore_mandatory = True

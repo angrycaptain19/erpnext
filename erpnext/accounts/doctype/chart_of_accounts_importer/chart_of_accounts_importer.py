@@ -31,7 +31,7 @@ def validate_columns(data):
 	if not data:
 		frappe.throw(_('No data found. Seems like you uploaded a blank file'))
 
-	no_of_columns = max([len(d) for d in data])
+	no_of_columns = max(len(d) for d in data)
 
 	if no_of_columns > 7:
 		frappe.throw(_('More columns found than expected. Please compare the uploaded file with standard template'),
@@ -183,7 +183,7 @@ def build_forest(data):
 		from frappe import _
 
 		for row in data:
-			account_name, parent_account, account_number, parent_account_number = row[0:4]
+			account_name, parent_account, account_number, parent_account_number = row[:4]
 			if account_number:
 				account_name = "{} - {}".format(account_number, account_name)
 			if parent_account_number:
@@ -239,13 +239,12 @@ def build_response_as_excel(writer):
 	filename = frappe.generate_hash("", 10)
 	with open(filename, 'wb') as f:
 		f.write(cstr(writer.getvalue()).encode('utf-8'))
-	f = open(filename)
-	reader = csv.reader(f)
+	with open(filename) as f:
+		reader = csv.reader(f)
 
-	from frappe.utils.xlsxutils import make_xlsx
-	xlsx_file = make_xlsx(reader, "Chart of Accounts Importer Template")
+		from frappe.utils.xlsxutils import make_xlsx
+		xlsx_file = make_xlsx(reader, "Chart of Accounts Importer Template")
 
-	f.close()
 	os.remove(filename)
 
 	# write out response as a xlsx type
@@ -352,7 +351,7 @@ def validate_root(accounts):
 		frappe.throw("<br>".join(error_messages))
 
 def validate_missing_roots(roots):
-	root_types_added = set(d.get('root_type') for d in roots)
+	root_types_added = {d.get('root_type') for d in roots}
 
 	missing = list(set(get_root_types()) - root_types_added)
 

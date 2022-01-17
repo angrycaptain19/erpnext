@@ -26,7 +26,8 @@ def create_or_update_cheque_print_format(template_name):
 
 	doc = frappe.get_doc("Cheque Print Template", template_name)
 
-	cheque_print.html = """
+	cheque_print.html = (
+	    """
 <style>
 	.print-format {
 		padding: 0px;
@@ -69,28 +70,50 @@ def create_or_update_cheque_print_format(template_name):
 			{{doc.company}}
 		</span>
 	</div>
-</div>"""%{
-		"starting_position_from_top_edge": doc.starting_position_from_top_edge \
-			if doc.cheque_size == "A4" else 0.0,
-		"cheque_width": doc.cheque_width, "cheque_height": doc.cheque_height,
-		"acc_pay_dist_from_top_edge": doc.acc_pay_dist_from_top_edge,
-		"acc_pay_dist_from_left_edge": doc.acc_pay_dist_from_left_edge,
-		"message_to_show": doc.message_to_show if doc.message_to_show else _("Account Pay Only"),
-		"date_dist_from_top_edge": doc.date_dist_from_top_edge,
-		"date_dist_from_left_edge": doc.date_dist_from_left_edge,
-		"acc_no_dist_from_top_edge": doc.acc_no_dist_from_top_edge,
-		"acc_no_dist_from_left_edge": doc.acc_no_dist_from_left_edge,
-		"payer_name_from_top_edge": doc.payer_name_from_top_edge,
-		"payer_name_from_left_edge": doc.payer_name_from_left_edge,
-		"amt_in_words_from_top_edge": doc.amt_in_words_from_top_edge,
-		"amt_in_words_from_left_edge": doc.amt_in_words_from_left_edge,
-		"amt_in_word_width": doc.amt_in_word_width,
-		"amt_in_words_line_spacing": doc.amt_in_words_line_spacing,
-		"amt_in_figures_from_top_edge": doc.amt_in_figures_from_top_edge,
-		"amt_in_figures_from_left_edge": doc.amt_in_figures_from_left_edge,
-		"signatory_from_top_edge": doc.signatory_from_top_edge,
-		"signatory_from_left_edge": doc.signatory_from_left_edge
-	}
+</div>"""
+	    % {
+	        "starting_position_from_top_edge":
+	        doc.starting_position_from_top_edge
+	        if doc.cheque_size == "A4" else 0.0,
+	        "cheque_width":
+	        doc.cheque_width,
+	        "cheque_height":
+	        doc.cheque_height,
+	        "acc_pay_dist_from_top_edge":
+	        doc.acc_pay_dist_from_top_edge,
+	        "acc_pay_dist_from_left_edge":
+	        doc.acc_pay_dist_from_left_edge,
+	        "message_to_show":
+	        doc.message_to_show or _("Account Pay Only"),
+	        "date_dist_from_top_edge":
+	        doc.date_dist_from_top_edge,
+	        "date_dist_from_left_edge":
+	        doc.date_dist_from_left_edge,
+	        "acc_no_dist_from_top_edge":
+	        doc.acc_no_dist_from_top_edge,
+	        "acc_no_dist_from_left_edge":
+	        doc.acc_no_dist_from_left_edge,
+	        "payer_name_from_top_edge":
+	        doc.payer_name_from_top_edge,
+	        "payer_name_from_left_edge":
+	        doc.payer_name_from_left_edge,
+	        "amt_in_words_from_top_edge":
+	        doc.amt_in_words_from_top_edge,
+	        "amt_in_words_from_left_edge":
+	        doc.amt_in_words_from_left_edge,
+	        "amt_in_word_width":
+	        doc.amt_in_word_width,
+	        "amt_in_words_line_spacing":
+	        doc.amt_in_words_line_spacing,
+	        "amt_in_figures_from_top_edge":
+	        doc.amt_in_figures_from_top_edge,
+	        "amt_in_figures_from_left_edge":
+	        doc.amt_in_figures_from_left_edge,
+	        "signatory_from_top_edge":
+	        doc.signatory_from_top_edge,
+	        "signatory_from_left_edge":
+	        doc.signatory_from_left_edge,
+	    })
 
 	cheque_print.save(ignore_permissions=True)
 

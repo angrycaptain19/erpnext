@@ -41,11 +41,15 @@ class PaymentReconciliation(Document):
 	def get_payment_entries(self):
 		order_doctype = "Sales Order" if self.party_type=="Customer" else "Purchase Order"
 		condition = self.get_conditions(get_payments=True)
-		payment_entries = get_advance_payment_entries(self.party_type, self.party,
-			self.receivable_payable_account, order_doctype, against_all_orders=True, limit=self.payment_limit,
-			condition=condition)
-
-		return payment_entries
+		return get_advance_payment_entries(
+		    self.party_type,
+		    self.party,
+		    self.receivable_payable_account,
+		    order_doctype,
+		    against_all_orders=True,
+		    limit=self.payment_limit,
+		    condition=condition,
+		)
 
 	def get_jv_entries(self):
 		condition = self.get_conditions()

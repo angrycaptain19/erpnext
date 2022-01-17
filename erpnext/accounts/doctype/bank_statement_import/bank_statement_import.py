@@ -29,12 +29,12 @@ class BankStatementImport(DataImport):
 			or (doc_before_save and doc_before_save.google_sheets_url != self.google_sheets_url)
 		):
 
-			template_options_dict = {}
-			column_to_field_map = {}
 			bank = frappe.get_doc("Bank", self.bank)
-			for i in bank.bank_transaction_mapping:
-				column_to_field_map[i.file_field] = i.bank_transaction_field
-			template_options_dict["column_to_field_map"] = column_to_field_map
+			column_to_field_map = {
+			    i.file_field: i.bank_transaction_field
+			    for i in bank.bank_transaction_mapping
+			}
+			template_options_dict = {'column_to_field_map': column_to_field_map}
 			self.template_options = json.dumps(template_options_dict)
 
 			self.template_warnings = ""
@@ -101,7 +101,7 @@ def start_import(data_import, bank_account, import_file_path, google_sheets_url,
 	update_mapping_db(bank, template_options)
 
 	data_import = frappe.get_doc("Bank Statement Import", data_import)
-	file = import_file_path if import_file_path else google_sheets_url
+	file = import_file_path or google_sheets_url
 
 	import_file = ImportFile("Bank Transaction", file = file, import_type="Insert New Records")
 	data = import_file.raw_data
@@ -157,7 +157,7 @@ def write_files(import_file, data):
 		with open(full_file_path, 'w', newline='') as file:
 			writer = csv.writer(file)
 			writer.writerows(data)
-	elif extension == "xlsx" or "xls":
+	else:
 		write_xlsx(data, "trans", file_path = full_file_path)
 
 def write_xlsx(data, sheet_name, wb=None, column_widths=None, file_path=None):

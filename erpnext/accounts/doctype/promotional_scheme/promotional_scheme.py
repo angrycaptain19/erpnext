@@ -129,7 +129,7 @@ def _get_pricing_rules(doc, child_doc, discount_fields, rules=None):
 	args = get_args_for_pricing_rule(doc)
 	applicable_for = frappe.scrub(doc.get('applicable_for'))
 
-	for idx, d in enumerate(doc.get(child_doc)):
+	for d in doc.get(child_doc):
 		if d.name in rules:
 			if not args.get(applicable_for):
 				docname = get_pricing_rule_docname(d)
@@ -189,7 +189,7 @@ def set_args(args, pr, doc, child_doc, discount_fields, child_doc_fields):
 
 	pr.promotional_scheme_id = child_doc_fields.name
 	pr.promotional_scheme = doc.name
-	pr.disable = child_doc_fields.disable if child_doc_fields.disable else doc.disable
+	pr.disable = child_doc_fields.disable or doc.disable
 	pr.price_or_product_discount = ('Price'
 		if child_doc == 'price_discount_slabs' else 'Product')
 
@@ -212,9 +212,10 @@ def get_args_for_pricing_rule(doc):
 
 	for d in pricing_rule_fields:
 		if d == applicable_for:
-			items = []
-			for applicable_for_values in doc.get(applicable_for):
-				items.append(applicable_for_values.get(applicable_for))
+			items = [
+			    applicable_for_values.get(applicable_for)
+			    for applicable_for_values in doc.get(applicable_for)
+			]
 			args[d] = items
 		else:
 			args[d] = doc.get(d)

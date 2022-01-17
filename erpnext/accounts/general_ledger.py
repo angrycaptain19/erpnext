@@ -21,11 +21,11 @@ def make_gl_entries(gl_map, cancel=False, adv_adj=False, merge_entries=True, upd
 		if not cancel:
 			validate_accounting_period(gl_map)
 			gl_map = process_gl_map(gl_map, merge_entries)
-			if gl_map and len(gl_map) > 1:
-				save_entries(gl_map, adv_adj, update_outstanding, from_repost)
-			# Post GL Map proccess there may no be any GL Entries
-			elif gl_map:
-				frappe.throw(_("Incorrect number of General Ledger Entries found. You might have selected a wrong Account in the transaction."))
+			if gl_map:
+				if len(gl_map) > 1:
+					save_entries(gl_map, adv_adj, update_outstanding, from_repost)
+				else:
+					frappe.throw(_("Incorrect number of General Ledger Entries found. You might have selected a wrong Account in the transaction."))
 		else:
 			make_reverse_gl_entries(gl_map, adv_adj=adv_adj, update_outstanding=update_outstanding)
 
@@ -129,7 +129,7 @@ def check_if_in_list(gle, gl_map, dimensions=None):
 			'cost_center', 'against_voucher_type', 'party_type', 'project', 'finance_book']
 
 	if dimensions:
-		account_head_fieldnames = account_head_fieldnames + dimensions
+		account_head_fieldnames += dimensions
 
 	for e in gl_map:
 		same_head = True
@@ -231,17 +231,28 @@ def make_round_off_gle(gl_map, debit_credit_diff, precision):
 				round_off_gle[k] = gl_map[0][k]
 
 	round_off_gle.update({
-		"account": round_off_account,
-		"debit_in_account_currency": abs(debit_credit_diff) if debit_credit_diff < 0 else 0,
-		"credit_in_account_currency": debit_credit_diff if debit_credit_diff > 0 else 0,
-		"debit": abs(debit_credit_diff) if debit_credit_diff < 0 else 0,
-		"credit": debit_credit_diff if debit_credit_diff > 0 else 0,
-		"cost_center": round_off_cost_center,
-		"party_type": None,
-		"party": None,
-		"is_opening": "No",
-		"against_voucher_type": None,
-		"against_voucher": None
+	    "account":
+	    round_off_account,
+	    "debit_in_account_currency":
+	    abs(debit_credit_diff) if debit_credit_diff < 0 else 0,
+	    "credit_in_account_currency":
+	    max(debit_credit_diff, 0),
+	    "debit":
+	    abs(debit_credit_diff) if debit_credit_diff < 0 else 0,
+	    "credit":
+	    max(debit_credit_diff, 0),
+	    "cost_center":
+	    round_off_cost_center,
+	    "party_type":
+	    None,
+	    "party":
+	    None,
+	    "is_opening":
+	    "No",
+	    "against_voucher_type":
+	    None,
+	    "against_voucher":
+	    None,
 	})
 
 	if not round_off_account_exists:

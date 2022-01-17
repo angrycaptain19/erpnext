@@ -133,18 +133,18 @@ class PartyLedgerSummaryReport(object):
 
 			if gle.posting_date < self.filters.from_date or gle.is_opening == "Yes":
 				self.party_data[gle.party].opening_balance += amount
+			elif amount > 0:
+				self.party_data[gle.party].invoiced_amount += amount
+			elif gle.voucher_no in self.return_invoices:
+				self.party_data[gle.party].return_amount -= amount
 			else:
-				if amount > 0:
-					self.party_data[gle.party].invoiced_amount += amount
-				elif gle.voucher_no in self.return_invoices:
-					self.party_data[gle.party].return_amount -= amount
-				else:
-					self.party_data[gle.party].paid_amount -= amount
+				self.party_data[gle.party].paid_amount -= amount
 
 		out = []
 		for party, row in self.party_data.items():
 			if row.opening_balance or row.invoiced_amount or row.paid_amount or row.return_amount or row.closing_amount:
-				total_party_adjustment = sum(amount for amount in self.party_adjustment_details.get(party, {}).values())
+				total_party_adjustment = sum(
+				    self.party_adjustment_details.get(party, {}).values())
 				row.paid_amount -= total_party_adjustment
 
 				adjustments = self.party_adjustment_details.get(party, {})
@@ -222,9 +222,9 @@ class PartyLedgerSummaryReport(object):
 						or (steam.parent = against_voucher and steam.parenttype = against_voucher_type)
 						or (steam.parent = party and steam.parenttype = 'Customer')))""".format(lft, rgt))
 
-		if self.filters.party_type == "Supplier":
-			if self.filters.get("supplier_group"):
-				conditions.append("""party in (select name from tabSupplier
+		if self.filters.party_type == "Supplier" and self.filters.get(
+		    "supplier_group"):
+			conditions.append("""party in (select name from tabSupplier
 					where supplier_group=%(supplier_group)s)""")
 
 		return " and ".join(conditions)

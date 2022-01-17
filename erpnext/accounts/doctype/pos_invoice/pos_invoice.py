@@ -56,10 +56,6 @@ class POSInvoice(SalesInvoice):
 		# create the loyalty point ledger entry if the customer is enrolled in any loyalty program
 		if self.loyalty_program:
 			self.make_loyalty_point_entry()
-		elif self.is_return and self.return_against and self.loyalty_program:
-			against_psi_doc = frappe.get_doc("POS Invoice", self.return_against)
-			against_psi_doc.delete_loyalty_point_entry()
-			against_psi_doc.make_loyalty_point_entry()
 		if self.redeem_loyalty_points and self.loyalty_points:
 			self.apply_loyalty_points()
 		self.check_phone_payments()
@@ -90,11 +86,6 @@ class POSInvoice(SalesInvoice):
 		super(SalesInvoice, self).on_cancel()
 		if self.loyalty_program:
 			self.delete_loyalty_point_entry()
-		elif self.is_return and self.return_against and self.loyalty_program:
-			against_psi_doc = frappe.get_doc("POS Invoice", self.return_against)
-			against_psi_doc.delete_loyalty_point_entry()
-			against_psi_doc.make_loyalty_point_entry()
-
 		if self.coupon_code:
 			from erpnext.accounts.doctype.pricing_rule.utils import update_coupon_code_count
 			update_coupon_code_count(self.coupon_code,'cancelled')
@@ -203,7 +194,7 @@ class POSInvoice(SalesInvoice):
 			elif batched and no_batch_selected:
 				msg = (_('Row #{}: No batch selected against item: {}. Please select a batch or remove it to complete transaction.')
 							.format(d.idx, item_code))
-			elif serialized and not no_serial_selected and len(serial_nos) != d.qty:
+			elif serialized and len(serial_nos) != d.qty:
 				msg = (_("Row #{}: You must select {} serial numbers for item {}.").format(d.idx, frappe.bold(cint(d.qty)), item_code))
 
 			if msg:
@@ -247,10 +238,9 @@ class POSInvoice(SalesInvoice):
 	def validate_non_stock_items(self):
 		for d in self.get("items"):
 			is_stock_item = frappe.get_cached_value("Item", d.get("item_code"), "is_stock_item")
-			if not is_stock_item:
-				if not frappe.db.exists('Product Bundle', d.item_code):
-					frappe.throw(_("Row #{}: Item {} is a non stock item. You can only include stock items in a POS Invoice.")
-						.format(d.idx, frappe.bold(d.item_code)), title=_("Invalid Item"))
+			if not is_stock_item and not frappe.db.exists('Product Bundle', d.item_code):
+				frappe.throw(_("Row #{}: Item {} is a non stock item. You can only include stock items in a POS Invoice.")
+					.format(d.idx, frappe.bold(d.item_code)), title=_("Invalid Item"))
 
 	def validate_mode_of_payment(self):
 		if len(self.payments) == 0:
@@ -508,9 +498,7 @@ def get_bundle_availability(bundle_item_code, warehouse):
 		available_qty = item_bin_qty - item_pos_reserved_qty
 
 		max_available_bundles = available_qty / item.qty
-		if bundle_bin_qty > max_available_bundles:
-			bundle_bin_qty = max_available_bundles
-
+		bundle_bin_qty = min(bundle_bin_qty, max_available_bundles)
 	pos_sales_qty = get_pos_reserved_qty(bundle_item_code, warehouse)
 	return bundle_bin_qty - pos_sales_qty
 

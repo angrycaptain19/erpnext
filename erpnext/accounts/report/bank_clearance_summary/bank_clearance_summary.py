@@ -16,7 +16,7 @@ def execute(filters=None):
 	return columns, data
 
 def get_columns():
-	columns = [{
+	return [{
 			"label": _("Payment Document Type"),
 			"fieldname": "payment_document_type",
 			"fieldtype": "Link",
@@ -59,8 +59,6 @@ def get_columns():
 			"fieldname": "amount",
 			"width": 120
 		}]
-
-	return columns
 
 def get_conditions(filters):
 	conditions = ""

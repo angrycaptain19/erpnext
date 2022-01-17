@@ -54,19 +54,20 @@ class PaymentRequest(Document):
 			frappe.throw(_("Transaction currency must be same as Payment Gateway currency"))
 
 	def validate_subscription_details(self):
-		if self.is_a_subscription:
-			amount = 0
-			for subscription_plan in self.subscription_plans:
-				payment_gateway = frappe.db.get_value("Subscription Plan", subscription_plan.plan, "payment_gateway")
-				if payment_gateway != self.payment_gateway_account:
-					frappe.throw(_('The payment gateway account in plan {0} is different from the payment gateway account in this payment request').format(subscription_plan.name))
+		if not self.is_a_subscription:
+			return
+		amount = 0
+		for subscription_plan in self.subscription_plans:
+			payment_gateway = frappe.db.get_value("Subscription Plan", subscription_plan.plan, "payment_gateway")
+			if payment_gateway != self.payment_gateway_account:
+				frappe.throw(_('The payment gateway account in plan {0} is different from the payment gateway account in this payment request').format(subscription_plan.name))
 
-				rate = get_plan_rate(subscription_plan.plan, quantity=subscription_plan.qty)
+			rate = get_plan_rate(subscription_plan.plan, quantity=subscription_plan.qty)
 
-				amount += rate
+			amount += rate
 
-			if amount != self.grand_total:
-				frappe.msgprint(_("The amount of {0} set in this payment request is different from the calculated amount of all payment plans: {1}. Make sure this is correct before submitting the document.").format(self.grand_total, amount))
+		if amount != self.grand_total:
+			frappe.msgprint(_("The amount of {0} set in this payment request is different from the calculated amount of all payment plans: {1}. Make sure this is correct before submitting the document.").format(self.grand_total, amount))
 
 	def on_submit(self):
 		if self.payment_request_type == 'Outward':
@@ -117,8 +118,8 @@ class PaymentRequest(Document):
 		if not data_of_completed_requests:
 			return self.grand_total
 
-		request_amounts = sum(json.loads(d).get('request_amount') for d in data_of_completed_requests)
-		return request_amounts
+		return sum(
+		    json.loads(d).get('request_amount') for d in data_of_completed_requests)
 
 	def on_cancel(self):
 		self.check_if_payment_entry_exists()
@@ -150,8 +151,8 @@ class PaymentRequest(Document):
 		if self.payment_url:
 			self.db_set('payment_url', self.payment_url)
 
-		if self.payment_url or not self.payment_gateway_account \
-			or (self.payment_gateway_account and self.payment_channel == "Phone"):
+		if (self.payment_url or not self.payment_gateway_account
+		    or self.payment_channel == "Phone"):
 			self.db_set('status', 'Initiated')
 
 	def get_payment_url(self):
@@ -265,12 +266,16 @@ class PaymentRequest(Document):
 		self.db_set("status", "Cancelled")
 
 	def check_if_payment_entry_exists(self):
-		if self.status == "Paid":
-			if frappe.get_all("Payment Entry Reference",
-				filters={"reference_name": self.reference_name, "docstatus": ["<", 2]},
-				fields=["parent"],
-				limit=1):
-				frappe.throw(_("Payment Entry already exists"), title=_('Error'))
+		if self.status == "Paid" and frappe.get_all(
+		    "Payment Entry Reference",
+		    filters={
+		        "reference_name": self.reference_name,
+		        "docstatus": ["<", 2]
+		    },
+		    fields=["parent"],
+		    limit=1,
+		):
+			frappe.throw(_("Payment Entry already exists"), title=_('Error'))
 
 	def make_communication_entry(self):
 		"""Make communication entry"""
@@ -444,9 +449,7 @@ def get_gateway_details(args):
 		payment_gateway_account = frappe.get_doc("Shopping Cart Settings").payment_gateway_account
 		return get_payment_gateway_account(payment_gateway_account)
 
-	gateway_account = get_payment_gateway_account({"is_default": 1})
-
-	return gateway_account
+	return get_payment_gateway_account({"is_default": 1})
 
 def get_payment_gateway_account(args):
 	return frappe.db.get_value("Payment Gateway Account", args,
@@ -455,10 +458,13 @@ def get_payment_gateway_account(args):
 
 @frappe.whitelist()
 def get_print_format_list(ref_doctype):
-	print_format_list = ["Standard"]
-
-	print_format_list.extend([p.name for p in frappe.get_all("Print Format",
-		filters={"doc_type": ref_doctype})])
+	print_format_list = [
+	    'Standard',
+	    *[
+	        p.name for p in frappe.get_all(
+	            "Print Format", filters={"doc_type": ref_doctype})
+	    ],
+	]
 
 	return {
 		"print_format": print_format_list

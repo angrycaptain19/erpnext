@@ -16,11 +16,7 @@ def execute(filters=None):
 		filters = {}
 
 	columns = get_columns(filters)
-	if filters.get("budget_against_filter"):
-		dimensions = filters.get("budget_against_filter")
-	else:
-		dimensions = get_cost_centers(filters)
-
+	dimensions = filters.get("budget_against_filter") or get_cost_centers(filters)
 	period_month_ranges = get_period_month_ranges(filters["period"], filters["from_fiscal_year"])
 	cam_map = get_dimension_account_month_map(filters)
 
@@ -149,9 +145,7 @@ def get_columns(filters):
 				'width': 150
 			})
 
-		return columns
-	else:
-		return columns
+	return columns
 
 
 def get_cost_centers(filters):
@@ -337,8 +331,8 @@ def get_dimension_account_month_map(filters):
 
 def get_fiscal_years(filters):
 
-	fiscal_year = frappe.db.sql(
-		"""
+	return frappe.db.sql(
+	    """
 			select
 				name
 			from
@@ -346,12 +340,11 @@ def get_fiscal_years(filters):
 			where
 				name between %(from_fiscal_year)s and %(to_fiscal_year)s
 		""",
-		{
-			"from_fiscal_year": filters["from_fiscal_year"],
-			"to_fiscal_year": filters["to_fiscal_year"]
-		})
-
-	return fiscal_year
+	    {
+	        "from_fiscal_year": filters["from_fiscal_year"],
+	        "to_fiscal_year": filters["to_fiscal_year"],
+	    },
+	)
 
 def get_chart_data(filters, columns, data):
 
@@ -371,11 +364,9 @@ def get_chart_data(filters, columns, data):
 				if group_months:
 					label = formatdate(from_date, format_string="MMM") + "-" \
 						+ formatdate(to_date, format_string="MMM")
-					labels.append(label)
 				else:
 					label = formatdate(from_date, format_string="MMM")
-					labels.append(label)
-
+				labels.append(label)
 	no_of_columns = len(labels)
 
 	budget_values, actual_values = [0] * no_of_columns, [0] * no_of_columns

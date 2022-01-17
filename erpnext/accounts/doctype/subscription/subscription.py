@@ -61,15 +61,13 @@ class Subscription(Document):
 		_current_invoice_start = None
 
 		if self.is_new_subscription() and self.trial_period_end and getdate(self.trial_period_end) > getdate(self.start_date):
-			_current_invoice_start = add_days(self.trial_period_end, 1)
+			return add_days(self.trial_period_end, 1)
 		elif self.trial_period_start and self.is_trialling():
-			_current_invoice_start = self.trial_period_start
+			return self.trial_period_start
 		elif date:
-			_current_invoice_start = date
+			return date
 		else:
-			_current_invoice_start = nowdate()
-
-		return _current_invoice_start
+			return nowdate()
 
 	def get_current_invoice_end(self, date=None):
 		"""
@@ -140,14 +138,12 @@ class Subscription(Document):
 		You shouldn't need to call this directly. Use `get_billing_cycle` instead.
 		"""
 		plan_names = [plan.plan for plan in self.plans]
-		billing_info = frappe.db.sql(
+		return frappe.db.sql(
 			'select distinct `billing_interval`, `billing_interval_count` '
 			'from `tabSubscription Plan` '
 			'where name in %s',
 			(plan_names,), as_dict=1
 		)
-
-		return billing_info
 
 	def get_billing_cycle_data(self):
 		"""
@@ -160,7 +156,7 @@ class Subscription(Document):
 		self.validate_plans_billing_cycle(billing_info)
 
 		if billing_info:
-			data = dict()
+			data = {}
 			interval = billing_info[0]['billing_interval']
 			interval_count = billing_info[0]['billing_interval_count']
 			if interval not in ['Day', 'Week']:
@@ -169,12 +165,11 @@ class Subscription(Document):
 				data['days'] = interval_count - 1
 			elif interval == 'Month':
 				data['months'] = interval_count
-			elif interval == 'Year':
-				data['years'] = interval_count
-			# todo: test week
 			elif interval == 'Week':
 				data['days'] = interval_count * 7 - 1
 
+			elif interval == 'Year':
+				data['years'] = interval_count
 			return data
 
 	def set_status_grace_period(self):
@@ -252,13 +247,12 @@ class Subscription(Document):
 		"""
 		Returns the most recent generated invoice.
 		"""
-		doctype = 'Sales Invoice' if self.party_type == 'Customer' else 'Purchase Invoice'
-
 		if len(self.invoices):
 			current = self.invoices[-1]
+			doctype = 'Sales Invoice' if self.party_type == 'Customer' else 'Purchase Invoice'
+
 			if frappe.db.exists(doctype, current.get('invoice')):
-				doc = frappe.get_doc(doctype, current.get('invoice'))
-				return doc
+				return frappe.get_doc(doctype, current.get('invoice'))
 			else:
 				frappe.throw(_('Invoice {0} no longer exists').format(current.get('invoice')))
 
@@ -279,9 +273,9 @@ class Subscription(Document):
 		"""
 		Runs sanity checks on trial period dates for the `Subscription`
 		"""
-		if self.trial_period_start and self.trial_period_end:
-			if getdate(self.trial_period_end) < getdate(self.trial_period_start):
-				frappe.throw(_('Trial Period End Date Cannot be before Trial Period Start Date'))
+		if (self.trial_period_start and self.trial_period_end
+		    and getdate(self.trial_period_end) < getdate(self.trial_period_start)):
+			frappe.throw(_('Trial Period End Date Cannot be before Trial Period Start Date'))
 
 		if self.trial_period_start and not self.trial_period_end:
 			frappe.throw(_('Both Trial Period Start Date and Trial Period End Date must be set'))
@@ -409,7 +403,7 @@ class Subscription(Document):
 
 			if self.additional_discount_percentage or self.additional_discount_amount:
 				discount_on = self.apply_additional_discount
-				invoice.apply_discount_on = discount_on if discount_on else 'Grand Total'
+				invoice.apply_discount_on = discount_on or 'Grand Total'
 
 		# Subscription period
 		invoice.from_date = self.current_invoice_start
@@ -465,10 +459,7 @@ class Subscription(Document):
 
 			for dimension in accounting_dimensions:
 				if plan_doc.get(dimension):
-					item.update({
-						dimension: plan_doc.get(dimension)
-					})
-
+					item[dimension] = plan_doc.get(dimension)
 			items.append(item)
 
 		return items
@@ -606,7 +597,8 @@ class Subscription(Document):
 		but it will not affect already created invoices.
 		"""
 		if self.status != 'Cancelled':
-			to_generate_invoice = True if self.status == 'Active' and not self.generate_invoice_at_period_start else False
+			to_generate_invoice = (self.status == 'Active'
+			                       and not self.generate_invoice_at_period_start)
 			to_prorate = frappe.db.get_single_value('Subscription Settings', 'prorate')
 			self.status = 'Cancelled'
 			self.cancelation_date = nowdate()
@@ -645,13 +637,10 @@ def get_calendar_months(billing_interval):
 
 def get_prorata_factor(period_end, period_start, is_prepaid):
 	if is_prepaid:
-		prorate_factor = 1
-	else:
-		diff = flt(date_diff(nowdate(), period_start) + 1)
-		plan_days = flt(date_diff(period_end, period_start) + 1)
-		prorate_factor = diff / plan_days
-
-	return prorate_factor
+		return 1
+	diff = flt(date_diff(nowdate(), period_start) + 1)
+	plan_days = flt(date_diff(period_end, period_start) + 1)
+	return diff / plan_days
 
 
 def process_all():

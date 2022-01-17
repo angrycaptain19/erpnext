@@ -32,9 +32,10 @@ class FiscalYear(Document):
 			year_start_end_dates = frappe.db.sql("""select year_start_date, year_end_date
 				from `tabFiscal Year` where name=%s""", (self.name))
 
-			if year_start_end_dates:
-				if getdate(self.year_start_date) != year_start_end_dates[0][0] or getdate(self.year_end_date) != year_start_end_dates[0][1]:
-					frappe.throw(_("Cannot change Fiscal Year Start Date and Fiscal Year End Date once the Fiscal Year is saved."))
+			if year_start_end_dates and (
+			    getdate(self.year_start_date) != year_start_end_dates[0][0]
+			    or getdate(self.year_end_date) != year_start_end_dates[0][1]):
+				frappe.throw(_("Cannot change Fiscal Year Start Date and Fiscal Year End Date once the Fiscal Year is saved."))
 
 	def validate_dates(self):
 		if self.is_short_year:

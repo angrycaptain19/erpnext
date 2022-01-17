@@ -150,11 +150,7 @@ def get_balance_on(account=None, date=None, party_type=None, party=None, company
 			# hence, assuming balance as 0.0
 			return 0.0
 
-	if account:
-		report_type = acc.report_type
-	else:
-		report_type = ""
-
+	report_type = acc.report_type if account else ""
 	if cost_center and report_type == 'Profit and Loss':
 		cc = frappe.get_doc("Cost Center", cost_center)
 		if cc.is_group:
@@ -650,7 +646,7 @@ def get_held_invoices(party_type, party):
 			'select name from `tabPurchase Invoice` where release_date IS NOT NULL and release_date > CURDATE()',
 			as_dict=1
 		)
-		held_invoices = set(d['name'] for d in held_invoices)
+		held_invoices = {d['name'] for d in held_invoices}
 
 	return held_invoices
 
@@ -724,12 +720,13 @@ def get_outstanding_invoices(party_type, party, account, condition=None, filters
 		payment_amount = pe_map.get((d.voucher_type, d.voucher_no), 0)
 		outstanding_amount = flt(d.invoice_amount - payment_amount, precision)
 		if outstanding_amount > 0.5 / (10**precision):
-			if (filters and filters.get("outstanding_amt_greater_than") and
-				not (outstanding_amount >= filters.get("outstanding_amt_greater_than") and
-				outstanding_amount <= filters.get("outstanding_amt_less_than"))):
+			if (filters and filters.get("outstanding_amt_greater_than")
+			    and (outstanding_amount < filters.get("outstanding_amt_greater_than")
+			         or outstanding_amount > filters.get("outstanding_amt_less_than"))):
 				continue
 
-			if not d.voucher_type == "Purchase Invoice" or d.voucher_no not in held_invoices:
+			if (d.voucher_type != "Purchase Invoice"
+			    or d.voucher_no not in held_invoices):
 				outstanding_invoices.append(
 					frappe._dict({
 						'voucher_no': d.voucher_no,
@@ -772,9 +769,14 @@ def get_children(doctype, parent, company, is_root=False):
 		'name as value',
 		'is_group as expandable'
 	]
-	filters = [['docstatus', '<', 2]]
-
-	filters.append(['ifnull(`{0}`,"")'.format(parent_fieldname), '=', '' if is_root else parent])
+	filters = [
+	    ['docstatus', '<', 2],
+	    [
+	        'ifnull(`{0}`,"")'.format(parent_fieldname),
+	        '=',
+	        '' if is_root else parent,
+	    ],
+	]
 
 	if is_root:
 		fields += ['root_type', 'report_type', 'account_currency'] if doctype == 'Account' else []
@@ -905,7 +907,7 @@ def get_coa(doctype, parent, is_root, chart=None):
 	)
 
 	# add chart to flags to retrieve when called from expand all function
-	chart = chart if chart else frappe.flags.chart
+	chart = chart or frappe.flags.chart
 	frappe.flags.chart = chart
 
 	parent = None if parent==_('All Accounts') else parent

@@ -76,7 +76,7 @@ class POSClosingEntry(StatusUpdater):
 @frappe.validate_and_sanitize_search_inputs
 def get_cashiers(doctype, txt, searchfield, start, page_len, filters):
 	cashiers_list = frappe.get_all("POS Profile User", filters=filters, fields=['user'], as_list=1)
-	return [c for c in cashiers_list]
+	return list(cashiers_list)
 
 @frappe.whitelist()
 def get_pos_invoices(start, end, pos_profile, user):
@@ -112,14 +112,11 @@ def make_closing_entry_from_opening(opening_entry):
 
 	pos_transactions = []
 	taxes = []
-	payments = []
-	for detail in opening_entry.balance_details:
-		payments.append(frappe._dict({
+	payments = [frappe._dict({
 			'mode_of_payment': detail.mode_of_payment,
 			'opening_amount': detail.opening_amount,
 			'expected_amount': detail.opening_amount
-		}))
-
+		}) for detail in opening_entry.balance_details]
 	for d in invoices:
 		pos_transactions.append(frappe._dict({
 			'pos_invoice': d.name,

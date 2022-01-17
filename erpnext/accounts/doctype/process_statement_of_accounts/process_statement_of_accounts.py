@@ -68,22 +68,34 @@ def get_report_pdf(doc, consolidated=True):
 			from frappe.www.printview import get_letter_head
 			letter_head = get_letter_head(doc, 0)
 
-		filters= frappe._dict({
-			'from_date': doc.from_date,
-			'to_date': doc.to_date,
-			'company': doc.company,
-			'finance_book': doc.finance_book if doc.finance_book else None,
-			'account': doc.account if doc.account else None,
-			'party_type': 'Customer',
-			'party': [entry.customer],
-			'presentation_currency': presentation_currency,
-			'group_by': doc.group_by,
-			'currency': doc.currency,
-			'cost_center': [cc.cost_center_name for cc in doc.cost_center],
-			'project': [p.project_name for p in doc.project],
-			'show_opening_entries': 0,
-			'include_default_book_entries': 0,
-			'tax_id': tax_id if tax_id else None
+		filters = frappe._dict({
+		    'from_date':
+		    doc.from_date,
+		    'to_date':
+		    doc.to_date,
+		    'company':
+		    doc.company,
+		    'finance_book':
+		    doc.finance_book or None,
+		    'account':
+		    doc.account or None,
+		    'party_type':
+		    'Customer',
+		    'party': [entry.customer],
+		    'presentation_currency':
+		    presentation_currency,
+		    'group_by':
+		    doc.group_by,
+		    'currency':
+		    doc.currency,
+		    'cost_center': [cc.cost_center_name for cc in doc.cost_center],
+		    'project': [p.project_name for p in doc.project],
+		    'show_opening_entries':
+		    0,
+		    'include_default_book_entries':
+		    0,
+		    'tax_id':
+		    tax_id or None,
 		})
 		col, res = get_soa(filters)
 
@@ -183,23 +195,20 @@ def fetch_customers(customer_collection, collection_name, primary_mandatory):
 		customers = get_customers_based_on_sales_person(collection_name)
 		if not bool(customers):
 			frappe.throw(_('No Customers found with selected options.'))
+	elif customer_collection == 'Sales Partner':
+		customers = frappe.get_list('Customer', fields=['name', 'email_id'], \
+			filters=[['default_sales_partner', '=', collection_name]])
 	else:
-		if customer_collection == 'Sales Partner':
-			customers = frappe.get_list('Customer', fields=['name', 'email_id'], \
-				filters=[['default_sales_partner', '=', collection_name]])
-		else:
-			customers = get_customers_based_on_territory_or_customer_group(customer_collection, collection_name)
+		customers = get_customers_based_on_territory_or_customer_group(customer_collection, collection_name)
 
 	for customer in customers:
 		primary_email = customer.get('email_id') or ''
 		billing_email = get_customer_emails(customer.name, 1, billing_and_primary=False)
 
-		if int(primary_mandatory):
-			if (primary_email == ''):
-				continue
-		elif (billing_email == '') and (primary_email == ''):
+		if (int(primary_mandatory) and (primary_email == '')
+		    or not int(primary_mandatory) and (billing_email == '') and
+		    (primary_email == '')):
 			continue
-
 		customer_list.append({
 			'name': customer.name,
 			'primary_email': primary_email,
@@ -261,45 +270,44 @@ def send_emails(document_name, from_scheduler=False):
 	doc = frappe.get_doc('Process Statement Of Accounts', document_name)
 	report = get_report_pdf(doc, consolidated=False)
 
-	if report:
-		for customer, report_pdf in report.items():
-			attachments = [{
-				'fname': customer + '.pdf',
-				'fcontent': report_pdf
-			}]
-
-			recipients, cc = get_recipients_and_cc(customer, doc)
-			context = get_context(customer, doc)
-			subject = frappe.render_template(doc.subject, context)
-			message = frappe.render_template(doc.body, context)
-
-			frappe.enqueue(
-				queue='short',
-				method=frappe.sendmail,
-				recipients=recipients,
-				sender=frappe.session.user,
-				cc=cc,
-				subject=subject,
-				message=message,
-				now=True,
-				reference_doctype='Process Statement Of Accounts',
-				reference_name=document_name,
-				attachments=attachments
-			)
-
-		if doc.enable_auto_email and from_scheduler:
-			new_to_date = getdate(today())
-			if doc.frequency == 'Weekly':
-				new_to_date = add_days(new_to_date, 7)
-			else:
-				new_to_date = add_months(new_to_date, 1 if doc.frequency == 'Monthly' else 3)
-			new_from_date = add_months(new_to_date, -1 * doc.filter_duration)
-			doc.add_comment('Comment', 'Emails sent on: ' + frappe.utils.format_datetime(frappe.utils.now()))
-			doc.db_set('to_date', new_to_date, commit=True)
-			doc.db_set('from_date', new_from_date, commit=True)
-		return True
-	else:
+	if not report:
 		return False
+	for customer, report_pdf in report.items():
+		attachments = [{
+			'fname': customer + '.pdf',
+			'fcontent': report_pdf
+		}]
+
+		recipients, cc = get_recipients_and_cc(customer, doc)
+		context = get_context(customer, doc)
+		subject = frappe.render_template(doc.subject, context)
+		message = frappe.render_template(doc.body, context)
+
+		frappe.enqueue(
+			queue='short',
+			method=frappe.sendmail,
+			recipients=recipients,
+			sender=frappe.session.user,
+			cc=cc,
+			subject=subject,
+			message=message,
+			now=True,
+			reference_doctype='Process Statement Of Accounts',
+			reference_name=document_name,
+			attachments=attachments
+		)
+
+	if doc.enable_auto_email and from_scheduler:
+		new_to_date = getdate(today())
+		if doc.frequency == 'Weekly':
+			new_to_date = add_days(new_to_date, 7)
+		else:
+			new_to_date = add_months(new_to_date, 1 if doc.frequency == 'Monthly' else 3)
+		new_from_date = add_months(new_to_date, -1 * doc.filter_duration)
+		doc.add_comment('Comment', 'Emails sent on: ' + frappe.utils.format_datetime(frappe.utils.now()))
+		doc.db_set('to_date', new_to_date, commit=True)
+		doc.db_set('from_date', new_from_date, commit=True)
+	return True
 
 @frappe.whitelist()
 def send_auto_email():

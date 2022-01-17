@@ -139,7 +139,7 @@ class PricingRule(Document):
 	def validate_price_list_with_currency(self):
 		if self.currency and self.for_price_list:
 			price_list_currency = frappe.db.get_value("Price List", self.for_price_list, "currency", True)
-			if not self.currency == price_list_currency:
+			if self.currency != price_list_currency:
 				throw(_("Currency should be same as Price List Currency: {0}").format(price_list_currency))
 
 	def validate_dates(self):
@@ -198,7 +198,7 @@ def apply_pricing_rule(args, doc=None):
 
 	item_code_list = tuple(item.get('item_code') for item in item_list)
 	query_items = frappe.get_all('Item', fields=['item_code','has_serial_no'], filters=[['item_code','in',item_code_list]],as_list=1)
-	serialized_items = dict()
+	serialized_items = {}
 	for item_code, val in query_items:
 		serialized_items.setdefault(item_code, val)
 
@@ -288,7 +288,7 @@ def get_pricing_rule_for_item(args, price_list_rate=0, doc=None, for_validate=Fa
 						if pricing_rule.apply_rule_on_other else frappe.scrub(pricing_rule.get('apply_on')))
 				})
 
-			if pricing_rule.coupon_code_based==1 and args.coupon_code==None:
+			if pricing_rule.coupon_code_based == 1 and args.coupon_code is None:
 				return item_details
 
 			if not pricing_rule.validate_applied_rule:
@@ -319,8 +319,8 @@ def update_args_for_pricing_rule(args):
 			args.item_group, args.brand = frappe.get_cached_value("Item", args.item_code, ["item_group", "brand"])
 		except frappe.DoesNotExistError:
 			return
-		if not args.item_group:
-			frappe.throw(_("Item Group not mentioned in item master for item {0}").format(args.item_code))
+	if not args.item_group:
+		frappe.throw(_("Item Group not mentioned in item master for item {0}").format(args.item_code))
 
 	if args.transaction_type=="selling":
 		if args.customer and not (args.customer_group and args.territory):
@@ -400,11 +400,11 @@ def remove_pricing_rule_for_item(pricing_rules, item_details, item_code=None):
 		pricing_rule = frappe.get_cached_doc('Pricing Rule', d)
 
 		if pricing_rule.price_or_product_discount == 'Price':
-			if pricing_rule.rate_or_discount == 'Discount Percentage':
-				item_details.discount_percentage = 0.0
+			if pricing_rule.rate_or_discount == 'Discount Amount':
 				item_details.discount_amount = 0.0
 
-			if pricing_rule.rate_or_discount == 'Discount Amount':
+			elif pricing_rule.rate_or_discount == 'Discount Percentage':
+				item_details.discount_percentage = 0.0
 				item_details.discount_amount = 0.0
 
 			if pricing_rule.margin_type in ['Percentage', 'Amount']:

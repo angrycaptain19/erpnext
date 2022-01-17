@@ -66,11 +66,7 @@ class Deferred_Item(object):
 		"""
 		Helper method - calculate booked amount. Includes simulated postings as well
 		"""
-		total = 0
-		for gle_posting in self.gle_entries:
-			total += self.get_amount(gle_posting)
-
-		return total
+		return sum(self.get_amount(gle_posting) for gle_posting in self.gle_entries)
 
 	def calculate_amount(self, start_date, end_date):
 		"""
@@ -96,7 +92,8 @@ class Deferred_Item(object):
 		if base_amount + already_booked_amount > self.base_net_amount:
 			base_amount = self.base_net_amount - already_booked_amount
 
-		if not (get_first_day(start_date) == start_date and get_last_day(end_date) == end_date):
+		if (get_first_day(start_date) != start_date
+		    or get_last_day(end_date) != end_date):
 			partial_month = flt(date_diff(end_date, start_date)) / flt(
 				date_diff(get_last_day(end_date), get_first_day(start_date))
 			)
@@ -121,21 +118,21 @@ class Deferred_Item(object):
 		"""
 		simulate future posting by creating dummy gl entries. starts from the last posting date.
 		"""
-		if self.service_start_date != self.service_end_date:
-			if add_days(self.last_entry_date, 1) < self.period_list[-1].to_date:
-				self.estimate_for_period_list = get_period_list(
-					self.filters.from_fiscal_year,
-					self.filters.to_fiscal_year,
-					add_days(self.last_entry_date, 1),
-					self.period_list[-1].to_date,
-					"Date Range",
-					"Monthly",
-					company=self.filters.company,
-				)
-				for period in self.estimate_for_period_list:
-					amount = self.calculate_amount(period.from_date, period.to_date)
-					gle = self.make_dummy_gle(period.key, period.to_date, amount)
-					self.gle_entries.append(gle)
+		if (self.service_start_date != self.service_end_date
+		    and add_days(self.last_entry_date, 1) < self.period_list[-1].to_date):
+			self.estimate_for_period_list = get_period_list(
+				self.filters.from_fiscal_year,
+				self.filters.to_fiscal_year,
+				add_days(self.last_entry_date, 1),
+				self.period_list[-1].to_date,
+				"Date Range",
+				"Monthly",
+				company=self.filters.company,
+			)
+			for period in self.estimate_for_period_list:
+				amount = self.calculate_amount(period.from_date, period.to_date)
+				gle = self.make_dummy_gle(period.key, period.to_date, amount)
+				self.gle_entries.append(gle)
 
 	def calculate_item_revenue_expense_for_period(self):
 		"""
@@ -178,7 +175,7 @@ class Deferred_Invoice(object):
 
 		self.items = []
 		# for each uniq items
-		self.uniq_items = set([x.item for x in items])
+		self.uniq_items = {x.item for x in items}
 		for item in self.uniq_items:
 			self.items.append(Deferred_Item(item, self, [x for x in items if x.item == item]))
 
@@ -208,12 +205,11 @@ class Deferred_Invoice(object):
 		"""
 		generate report data for invoice, includes invoice total
 		"""
-		ret_data = []
 		inv_total = frappe._dict({"name": self.name})
 		for x in self.period_total:
 			inv_total[x.key] = x.total
 			inv_total.indent = 0
-		ret_data.append(inv_total)
+		ret_data = [inv_total]
 		list(map(lambda item: ret_data.append(item.report_data()), self.items))
 		return ret_data
 
@@ -321,7 +317,7 @@ class Deferred_Revenue_and_Expense_Report(object):
 		)
 		self.invoices = query.run(as_dict=True)
 
-		uniq_invoice = set([x.doc for x in self.invoices])
+		uniq_invoice = {x.doc for x in self.invoices}
 		for inv in uniq_invoice:
 			self.deferred_invoices.append(
 				Deferred_Invoice(
@@ -352,8 +348,12 @@ class Deferred_Revenue_and_Expense_Report(object):
 				self.period_total[idx].actual += inv_total[idx].actual
 
 	def get_columns(self):
-		columns = []
-		columns.append({"label": _("Name"), "fieldname": "name", "fieldtype": "Data", "read_only": 1})
+		columns = [{
+		    "label": _("Name"),
+		    "fieldname": "name",
+		    "fieldtype": "Data",
+		    "read_only": 1,
+		}]
 		for period in self.period_list:
 			columns.append(
 				{

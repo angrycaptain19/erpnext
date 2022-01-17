@@ -52,16 +52,16 @@ class ShippingRule(Document):
 			# validate country only if there is address
 			self.validate_countries(doc)
 
-		if self.calculate_based_on == 'Net Total':
+		if self.calculate_based_on == 'Fixed':
+			shipping_amount = self.shipping_amount
+
+		elif self.calculate_based_on == 'Net Total':
 			value = doc.base_net_total
 			by_value = True
 
 		elif self.calculate_based_on == 'Net Weight':
 			value = doc.total_net_weight
 			by_value = True
-
-		elif self.calculate_based_on == 'Fixed':
-			shipping_amount = self.shipping_amount
 
 		# shipping amount by value, apply conditions
 		if by_value:
@@ -97,12 +97,12 @@ class ShippingRule(Document):
 		}
 		if self.shipping_rule_type == "Selling":
 			# check if not applied on purchase
-			if not doc.meta.get_field('taxes').options == 'Sales Taxes and Charges':
+			if doc.meta.get_field('taxes').options != 'Sales Taxes and Charges':
 				frappe.throw(_('Shipping rule only applicable for Selling'))
 			shipping_charge["doctype"] = "Sales Taxes and Charges"
 		else:
 			# check if not applied on sales
-			if not doc.meta.get_field('taxes').options == 'Purchase Taxes and Charges':
+			if doc.meta.get_field('taxes').options != 'Purchase Taxes and Charges':
 				frappe.throw(_('Shipping rule only applicable for Buying'))
 
 			shipping_charge["doctype"] = "Purchase Taxes and Charges"

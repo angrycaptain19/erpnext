@@ -203,16 +203,10 @@ def get_chart_data(filters, columns, asset, liability, equity):
 	if equity_data:
 		datasets.append({'name': _('Equity'), 'values': equity_data})
 
-	chart = {
-		"data": {
-			'labels': labels,
-			'datasets': datasets
-		}
+	return {
+	    'data': {
+	        'labels': labels,
+	        'datasets': datasets
+	    },
+	    'type': "bar" if not filters.accumulated_values else "line",
 	}
-
-	if not filters.accumulated_values:
-		chart["type"] = "bar"
-	else:
-		chart["type"] = "line"
-
-	return chart

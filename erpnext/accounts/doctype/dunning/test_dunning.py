@@ -50,10 +50,10 @@ class TestDunning(unittest.TestCase):
 			from `tabGL Entry` where voucher_type='Dunning' and voucher_no=%s
 			order by account asc""", dunning.name, as_dict=1)
 		self.assertTrue(gl_entries)
-		expected_values = dict((d[0], d) for d in [
-			['Debtors - _TC', 20.44, 0.0],
-			['Sales - _TC',  0.0, 20.44]
-		])
+		expected_values = {d[0]: d for d in [
+				['Debtors - _TC', 20.44, 0.0],
+				['Sales - _TC',  0.0, 20.44]
+			]}
 		for gle in gl_entries:
 			self.assertEqual(expected_values[gle.account][0], gle.account)
 			self.assertEqual(expected_values[gle.account][1], gle.debit)

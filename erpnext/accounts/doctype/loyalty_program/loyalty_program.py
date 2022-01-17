@@ -16,9 +16,7 @@ def get_loyalty_details(customer, loyalty_program, expiry_date=None, company=Non
 	if not expiry_date:
 		expiry_date = today()
 
-	condition = ''
-	if company:
-		condition = " and company=%s " % frappe.db.escape(company)
+	condition = " and company=%s " % frappe.db.escape(company) if company else ''
 	if not include_expired_entry:
 		condition += " and expiry_date>='%s' " % expiry_date
 
@@ -44,12 +42,12 @@ def get_loyalty_program_details_with_points(customer, loyalty_program=None, expi
 	tier_spent_level = sorted([d.as_dict() for d in loyalty_program.collection_rules],
 		key=lambda rule:rule.min_spent, reverse=True)
 	for i, d in enumerate(tier_spent_level):
-		if i==0 or (lp_details.total_spent+current_transaction_amount) <= d.min_spent:
-			lp_details.tier_name = d.tier_name
-			lp_details.collection_factor = d.collection_factor
-		else:
+		if (i != 0
+		    and lp_details.total_spent + current_transaction_amount > d.min_spent):
 			break
 
+		lp_details.tier_name = d.tier_name
+		lp_details.collection_factor = d.collection_factor
 	return lp_details
 
 @frappe.whitelist()

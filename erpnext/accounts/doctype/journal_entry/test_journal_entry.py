@@ -98,19 +98,25 @@ class TestJournalEntry(unittest.TestCase):
 		jv = frappe.new_doc("Journal Entry")
 		jv.company = company
 		jv.posting_date = nowdate()
-		jv.append("accounts", {
-			"account": stock_account,
-			"cost_center": "Main - TCP1",
-			"debit_in_account_currency": 0 if diff > 0 else abs(diff),
-			"credit_in_account_currency": diff if diff > 0 else 0
-		})
+		jv.append(
+		    "accounts",
+		    {
+		        "account": stock_account,
+		        "cost_center": "Main - TCP1",
+		        "debit_in_account_currency": 0 if diff > 0 else abs(diff),
+		        "credit_in_account_currency": max(diff, 0),
+		    },
+		)
 
-		jv.append("accounts", {
-			"account": "Stock Adjustment - TCP1",
-			"cost_center": "Main - TCP1",
-			"debit_in_account_currency": diff if diff > 0 else 0,
-			"credit_in_account_currency": 0 if diff > 0 else abs(diff)
-		})
+		jv.append(
+		    "accounts",
+		    {
+		        "account": "Stock Adjustment - TCP1",
+		        "cost_center": "Main - TCP1",
+		        "debit_in_account_currency": max(diff, 0),
+		        "credit_in_account_currency": 0 if diff > 0 else abs(diff),
+		    },
+		)
 		jv.insert()
 
 		if account_bal == stock_bal:
@@ -152,7 +158,7 @@ class TestJournalEntry(unittest.TestCase):
 		}
 
 		for field in ("account_currency", "debit", "debit_in_account_currency", "credit", "credit_in_account_currency"):
-			for i, gle in enumerate(gl_entries):
+			for gle in gl_entries:
 				self.assertEqual(expected_values[gle.account][field], gle[field])
 
 		# cancel
@@ -203,7 +209,7 @@ class TestJournalEntry(unittest.TestCase):
 		}
 
 		for field in ("account_currency", "debit", "debit_in_account_currency", "credit", "credit_in_account_currency"):
-			for i, gle in enumerate(gl_entries):
+			for gle in gl_entries:
 				self.assertEqual(expected_values[gle.account][field], gle[field])
 
 	def test_disallow_change_in_account_currency_for_a_party(self):
@@ -369,28 +375,32 @@ def make_journal_entry(account1, account2, amount, cost_center=None, posting_dat
 	jv.company = "_Test Company"
 	jv.user_remark = "test"
 	jv.multi_currency = 1
-	jv.set("accounts", [
-		{
-			"account": account1,
-			"cost_center": cost_center,
-			"project": project,
-			"debit_in_account_currency": amount if amount > 0 else 0,
-			"credit_in_account_currency": abs(amount) if amount < 0 else 0,
-			"exchange_rate": exchange_rate
-		}, {
-			"account": account2,
-			"cost_center": cost_center,
-			"project": project,
-			"credit_in_account_currency": amount if amount > 0 else 0,
-			"debit_in_account_currency": abs(amount) if amount < 0 else 0,
-			"exchange_rate": exchange_rate
-		}
-	])
+	jv.set(
+	    "accounts",
+	    [
+	        {
+	            "account": account1,
+	            "cost_center": cost_center,
+	            "project": project,
+	            "debit_in_account_currency": max(amount, 0),
+	            "credit_in_account_currency": abs(amount) if amount < 0 else 0,
+	            "exchange_rate": exchange_rate,
+	        },
+	        {
+	            "account": account2,
+	            "cost_center": cost_center,
+	            "project": project,
+	            "credit_in_account_currency": max(amount, 0),
+	            "debit_in_account_currency": abs(amount) if amount < 0 else 0,
+	            "exchange_rate": exchange_rate,
+	        },
+	    ],
+	)
 	if save or submit:
 		jv.insert()
 
-		if submit:
-			jv.submit()
+	if submit:
+		jv.submit()
 
 	return jv
 

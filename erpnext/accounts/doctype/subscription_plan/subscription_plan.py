@@ -31,11 +31,7 @@ def get_plan_rate(plan, quantity=1, customer=None, start_date=None, end_date=Non
 			customer_group = None
 
 		price = get_price(item_code=plan.item, price_list=plan.price_list, customer_group=customer_group, company=None, qty=quantity)
-		if not price:
-			return 0
-		else:
-			return price.price_list_rate * prorate_factor
-
+		return 0 if not price else price.price_list_rate * prorate_factor
 	elif plan.price_determination == 'Monthly Rate':
 		start_date = getdate(start_date)
 		end_date = getdate(end_date)

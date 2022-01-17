@@ -273,7 +273,9 @@ def get_actual_expense(args):
 		gle.{budget_against} = %({budget_against})s)""".format(doctype=args.budget_against_doctype,
 		budget_against = budget_against_field)
 
-	amount  = flt(frappe.db.sql("""
+	return flt(
+	    frappe.db.sql(
+	        """
 		select sum(gle.debit) - sum(gle.credit)
 		from `tabGL Entry` gle
 		where gle.account=%(account)s
@@ -282,9 +284,10 @@ def get_actual_expense(args):
 			and gle.company=%(company)s
 			and gle.docstatus=1
 			{condition2}
-	""".format(condition1=condition1, condition2=condition2), (args))[0][0]) #nosec
-
-	return amount
+	"""
+	        .format(condition1=condition1, condition2=condition2),
+	        (args),
+	    )[0][0])
 
 def get_accumulated_monthly_budget(monthly_distribution, posting_date, fiscal_year, annual_budget):
 	distribution = {}

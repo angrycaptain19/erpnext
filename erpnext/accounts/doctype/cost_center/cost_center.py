@@ -34,7 +34,8 @@ class CostCenter(NestedSet):
 					frappe.throw(_("Cannot enable Distributed Cost Center for a Cost Center already allocated in another Distributed Cost Center"))
 				if next((True for x in self.distributed_cost_center if x.cost_center == x.parent), False):
 					frappe.throw(_("Parent Cost Center cannot be added in Distributed Cost Center"))
-			if check_if_distributed_cost_center_enabled(list(x.cost_center for x in self.distributed_cost_center)):
+			if check_if_distributed_cost_center_enabled(
+			    [x.cost_center for x in self.distributed_cost_center]):
 				frappe.throw(_("A Distributed Cost Center cannot be added in the Distributed Cost Center allocation table."))
 		else:
 			self.distributed_cost_center = []
@@ -46,10 +47,10 @@ class CostCenter(NestedSet):
 			frappe.throw(_("Root cannot have a parent cost center"))
 
 	def validate_parent_cost_center(self):
-		if self.parent_cost_center:
-			if not frappe.db.get_value('Cost Center', self.parent_cost_center, 'is_group'):
-				frappe.throw(_("{0} is not a group node. Please select a group node as parent cost center").format(
-					frappe.bold(self.parent_cost_center)))
+		if self.parent_cost_center and not frappe.db.get_value(
+		    'Cost Center', self.parent_cost_center, 'is_group'):
+			frappe.throw(_("{0} is not a group node. Please select a group node as parent cost center").format(
+				frappe.bold(self.parent_cost_center)))
 
 	@frappe.whitelist()
 	def convert_group_to_ledger(self):

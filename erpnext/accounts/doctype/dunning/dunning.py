@@ -45,7 +45,6 @@ class Dunning(AccountsController):
 	def make_gl_entries(self):
 		if not self.dunning_amount:
 			return
-		gl_entries = []
 		invoice_fields = ["project", "cost_center", "debit_to", "party_account_currency", "conversion_rate", "cost_center"]
 		inv = frappe.db.get_value("Sales Invoice", self.sales_invoice, invoice_fields, as_dict=1)
 
@@ -55,8 +54,7 @@ class Dunning(AccountsController):
 		dunning_in_company_currency = flt(self.dunning_amount * inv.conversion_rate)
 		default_cost_center = frappe.get_cached_value('Company',  self.company,  'cost_center')
 
-		gl_entries.append(
-			self.get_gl_dict({
+		gl_entries = [self.get_gl_dict({
 				"account": inv.debit_to,
 				"party_type": "Customer",
 				"party": self.customer,
@@ -68,8 +66,7 @@ class Dunning(AccountsController):
 				"against_voucher_type": "Dunning",
 				"cost_center": inv.cost_center or default_cost_center,
 				"project": inv.project
-			}, inv.party_account_currency, item=inv)
-		)
+			}, inv.party_account_currency, item=inv)]
 		gl_entries.append(
 			self.get_gl_dict({
 				"account": self.income_account,

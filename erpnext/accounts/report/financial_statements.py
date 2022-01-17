@@ -60,13 +60,7 @@ def get_period_list(from_fiscal_year, to_fiscal_year, period_start_date, period_
 		# Subtract one day from to_date, as it may be first day in next fiscal year or month
 		to_date = add_days(to_date, -1)
 
-		if to_date <= year_end_date:
-			# the normal case
-			period.to_date = to_date
-		else:
-			# if a fiscal year ends before a 12 month period
-			period.to_date = year_end_date
-
+		period.to_date = to_date if to_date <= year_end_date else year_end_date
 		if not ignore_fiscal_year:
 			period.to_date_fiscal_year = get_fiscal_year(period.to_date, company=company)[0]
 			period.from_date_fiscal_year_start_date = get_fiscal_year(period.from_date, company=company)[1]
@@ -81,14 +75,12 @@ def get_period_list(from_fiscal_year, to_fiscal_year, period_start_date, period_
 		key = opts["to_date"].strftime("%b_%Y").lower()
 		if periodicity == "Monthly" and not accumulated_values:
 			label = formatdate(opts["to_date"], "MMM YYYY")
+		elif not accumulated_values:
+			label = get_label(periodicity, opts["from_date"], opts["to_date"])
+		elif reset_period_on_fy_change:
+			label = get_label(periodicity, opts.from_date_fiscal_year_start_date, opts["to_date"])
 		else:
-			if not accumulated_values:
-				label = get_label(periodicity, opts["from_date"], opts["to_date"])
-			else:
-				if reset_period_on_fy_change:
-					label = get_label(periodicity, opts.from_date_fiscal_year_start_date, opts["to_date"])
-				else:
-					label = get_label(periodicity, period_list[0].from_date, opts["to_date"])
+			label = get_label(periodicity, period_list[0].from_date, opts["to_date"])
 
 		opts.update({
 			"key": key.replace(" ", "_").replace("-", "_"),
@@ -130,14 +122,11 @@ def get_months(start_date, end_date):
 
 def get_label(periodicity, from_date, to_date):
 	if periodicity == "Yearly":
-		if formatdate(from_date, "YYYY") == formatdate(to_date, "YYYY"):
-			label = formatdate(from_date, "YYYY")
-		else:
-			label = formatdate(from_date, "YYYY") + "-" + formatdate(to_date, "YYYY")
+		return (formatdate(from_date, "YYYY")
+		        if formatdate(from_date, "YYYY") == formatdate(to_date, "YYYY") else
+		        formatdate(from_date, "YYYY") + "-" + formatdate(to_date, "YYYY"))
 	else:
-		label = formatdate(from_date, "MMM YY") + "-" + formatdate(to_date, "MMM YY")
-
-	return label
+		return formatdate(from_date, "MMM YY") + "-" + formatdate(to_date, "MMM YY")
 
 
 def get_data(
@@ -197,11 +186,11 @@ def calculate_values(
 			for period in period_list:
 				# check if posting date is within the period
 
-				if entry.posting_date <= period.to_date:
-					if (accumulated_values or entry.posting_date >= period.from_date) and \
-						(not ignore_accumulated_values_for_fy or
-							entry.fiscal_year == period.to_date_fiscal_year):
-						d[period.key] = d.get(period.key, 0.0) + flt(entry.debit) - flt(entry.credit)
+				if (entry.posting_date <= period.to_date
+				    and (accumulated_values or entry.posting_date >= period.from_date)
+				    and (not ignore_accumulated_values_for_fy
+				         or entry.fiscal_year == period.to_date_fiscal_year)):
+					d[period.key] = d.get(period.key, 0.0) + flt(entry.debit) - flt(entry.credit)
 
 			if entry.posting_date < period_list[0].year_start_date:
 				d["opening_balance"] = d.get("opening_balance", 0.0) + flt(entry.debit) - flt(entry.credit)
@@ -322,7 +311,7 @@ def filter_accounts(accounts, depth=20):
 	def add_to_list(parent, level):
 		if level < depth:
 			children = parent_children_map.get(parent) or []
-			sort_accounts(children, is_root=True if parent==None else False)
+			sort_accounts(children, is_root=parent is None)
 
 			for child in children:
 				child.indent = level
@@ -383,10 +372,7 @@ def set_gl_entries_by_account(
 
 		for key, value in filters.items():
 			if value:
-				gl_filters.update({
-					key: value
-				})
-
+				gl_filters[key] = value
 		distributed_cost_center_query = ""
 		if filters and filters.get('cost_center'):
 			distributed_cost_center_query = """
@@ -511,21 +497,15 @@ def get_columns(periodicity, period_list, accumulated_values=1, company=None):
 			"options": "currency",
 			"width": 150
 		})
-	if periodicity!="Yearly":
-		if not accumulated_values:
-			columns.append({
-				"fieldname": "total",
-				"label": _("Total"),
-				"fieldtype": "Currency",
-				"width": 150
-			})
+	if periodicity != "Yearly" and not accumulated_values:
+		columns.append({
+			"fieldname": "total",
+			"label": _("Total"),
+			"fieldtype": "Currency",
+			"width": 150
+		})
 
 	return columns
 
 def get_filtered_list_for_consolidated_report(filters, period_list):
-	filtered_summary_list = []
-	for period in period_list:
-		if period == filters.get('company'):
-			filtered_summary_list.append(period)
-
-	return filtered_summary_list
+	return [period for period in period_list if period == filters.get('company')]

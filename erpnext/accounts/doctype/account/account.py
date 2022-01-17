@@ -87,9 +87,9 @@ class Account(NestedSet):
 
 	def validate_root_details(self):
 		# does not exists parent
-		if frappe.db.exists("Account", self.name):
-			if not frappe.db.get_value("Account", self.name, "parent_account"):
-				throw(_("Root cannot be edited."), RootNotEditable)
+		if frappe.db.exists("Account", self.name) and not frappe.db.get_value(
+		    "Account", self.name, "parent_account"):
+			throw(_("Root cannot be edited."), RootNotEditable)
 
 		if not self.parent_account and not self.is_group:
 			frappe.throw(_("The root account {0} must be a group").format(frappe.bold(self.name)))
@@ -108,7 +108,6 @@ class Account(NestedSet):
 		elif self.parent_account:
 			descendants = get_descendants_of('Company', self.company)
 			if not descendants: return
-			parent_acc_name_map = {}
 			parent_acc_name, parent_acc_number = frappe.db.get_value('Account', self.parent_account, \
 				["account_name", "account_number"])
 			filters = {
@@ -118,9 +117,15 @@ class Account(NestedSet):
 			if parent_acc_number:
 				filters["account_number"] = parent_acc_number
 
-			for d in frappe.db.get_values('Account', filters=filters, fieldname=["company", "name"], as_dict=True):
-				parent_acc_name_map[d["company"]] = d["name"]
-
+			parent_acc_name_map = {
+			    d["company"]: d["name"]
+			    for d in frappe.db.get_values(
+			        'Account',
+			        filters=filters,
+			        fieldname=["company", "name"],
+			        as_dict=True,
+			    )
+			}
 			if not parent_acc_name_map: return
 
 			self.create_account_for_child_company(parent_acc_name_map, descendants, parent_acc_name)
@@ -204,7 +209,7 @@ class Account(NestedSet):
 				doc.save()
 				frappe.msgprint(_("Account {0} is added in the child company {1}")
 					.format(doc.name, company))
-			elif child_account:
+			else:
 				# update the parent company's value in child companies
 				doc = frappe.get_doc("Account", child_account)
 				parent_value_changed = False

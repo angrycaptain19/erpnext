@@ -98,7 +98,7 @@ class ReceivablePayableReport(object):
 		for gle in self.gl_entries:
 			# get the balance object for voucher_type
 			key = (gle.voucher_type, gle.voucher_no, gle.party)
-			if not key in self.voucher_balance:
+			if key not in self.voucher_balance:
 				self.voucher_balance[key] = frappe._dict(
 					voucher_type = gle.voucher_type,
 					voucher_no = gle.voucher_no,
@@ -165,16 +165,14 @@ class ReceivablePayableReport(object):
 				# invoice
 				row.invoiced += gle_balance
 				row.invoiced_in_account_currency += gle_balance_in_account_currency
+		elif self.is_invoice(gle):
+			# stand alone debit / credit note
+			row.credit_note -= gle_balance
+			row.credit_note_in_account_currency -= gle_balance_in_account_currency
 		else:
-			# payment or credit note for receivables
-			if self.is_invoice(gle):
-				# stand alone debit / credit note
-				row.credit_note -= gle_balance
-				row.credit_note_in_account_currency -= gle_balance_in_account_currency
-			else:
-				# advance / unlinked payment or other adjustment
-				row.paid -= gle_balance
-				row.paid_in_account_currency -= gle_balance_in_account_currency
+			# advance / unlinked payment or other adjustment
+			row.paid -= gle_balance
+			row.paid_in_account_currency -= gle_balance_in_account_currency
 
 		if gle.cost_center:
 			row.cost_center =  str(gle.cost_center)
@@ -196,9 +194,10 @@ class ReceivablePayableReport(object):
 	def get_voucher_balance(self, gle):
 		if self.filters.get("sales_person"):
 			against_voucher = gle.against_voucher or gle.voucher_no
-			if not (gle.party in self.sales_person_records.get("Customer", []) or \
-				against_voucher in self.sales_person_records.get("Sales Invoice", [])):
-					return
+			if gle.party not in self.sales_person_records.get(
+			    "Customer", []) and against_voucher not in self.sales_person_records.get(
+			        "Sales Invoice", []):
+				return
 
 		voucher_balance = None
 		if gle.against_voucher:
@@ -208,11 +207,11 @@ class ReceivablePayableReport(object):
 			# If payment is made against credit note
 			# and credit note is made against a Sales Invoice
 			# then consider the payment against original sales invoice.
-			if gle.against_voucher_type in ('Sales Invoice', 'Purchase Invoice'):
-				if gle.against_voucher in self.return_entries:
-					return_against = self.return_entries.get(gle.against_voucher)
-					if return_against:
-						against_voucher = return_against
+			if (gle.against_voucher_type in ('Sales Invoice', 'Purchase Invoice')
+			    and gle.against_voucher in self.return_entries):
+				return_against = self.return_entries.get(gle.against_voucher)
+				if return_against:
+					against_voucher = return_against
 
 			voucher_balance = self.voucher_balance.get((gle.against_voucher_type, against_voucher, gle.party))
 
@@ -538,7 +537,7 @@ class ReceivablePayableReport(object):
 		}
 		party_field = scrub(self.filters.party_type)
 		if self.filters.get(party_field):
-			filters.update({party_field: self.filters.get(party_field)})
+			filters[party_field] = self.filters.get(party_field)
 		self.return_entries = frappe._dict(
 			frappe.get_all(doctype, filters, ['name', 'return_against'], as_list=1)
 		)
@@ -754,7 +753,7 @@ class ReceivablePayableReport(object):
 			return True
 
 	def get_party_details(self, party):
-		if not party in self.party_details:
+		if party not in self.party_details:
 			if self.party_type == 'Customer':
 				self.party_details[party] = frappe.db.get_value('Customer', party, ['customer_name',
 					'territory', 'customer_group', 'customer_primary_contact'], as_dict=True)

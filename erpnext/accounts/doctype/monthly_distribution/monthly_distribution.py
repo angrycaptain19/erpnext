@@ -13,13 +13,11 @@ class MonthlyDistribution(Document):
 	def get_months(self):
 		month_list = ['January','February','March','April','May','June','July','August','September',
 		'October','November','December']
-		idx =1
-		for m in month_list:
+		for idx, m in enumerate(month_list, start=1):
 			mnth = self.append('percentages')
 			mnth.month = m
 			mnth.percentage_allocation = 100.0/12
 			mnth.idx = idx
-			idx += 1
 
 	def validate(self):
 		total = sum(flt(d.percentage_allocation) for d in self.get("percentages"))
@@ -38,22 +36,16 @@ def get_periodwise_distribution_data(distribution_id, period_list, periodicity):
 		"Monthly": 1
 	}[periodicity]
 
-	period_dict = {}
-
-	for d in period_list:
-		period_dict[d.key] = get_percentage(doc, d.from_date, months_to_add)
-
-	return period_dict
+	return {
+	    d.key: get_percentage(doc, d.from_date, months_to_add)
+	    for d in period_list
+	}
 
 def get_percentage(doc, start_date, period):
-	percentage = 0
 	months = [start_date.strftime("%B").title()]
 
 	for r in range(1, period):
 		months.append(add_months(start_date, r).strftime("%B").title())
 
-	for d in doc.percentages:
-		if d.month in months:
-			percentage += d.percentage_allocation
-
-	return percentage
+	return sum(
+	    d.percentage_allocation for d in doc.percentages if d.month in months)

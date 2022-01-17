@@ -24,22 +24,22 @@ class BankReconciliationTool(Document):
 @frappe.whitelist()
 def get_bank_transactions(bank_account, from_date = None, to_date = None):
 	# returns bank transactions for a bank account
-	filters = []
-	filters.append(['bank_account', '=', bank_account])
-	filters.append(['docstatus', '=', 1])
-	filters.append(['unallocated_amount', '>', 0])
+	filters = [
+	    ['bank_account', '=', bank_account],
+	    ['docstatus', '=', 1],
+	    ['unallocated_amount', '>', 0],
+	]
 	if to_date:
 		filters.append(['date', '<=', to_date])
 	if from_date:
 		filters.append(['date', '>=', from_date])
-	transactions = frappe.get_all(
+	return frappe.get_all(
 		'Bank Transaction',
 		fields = ['date', 'deposit', 'withdrawal', 'currency',
 		'description', 'name', 'bank_account', 'company',
 		'unallocated_amount', 'reference_number', 'party_type', 'party'],
 		filters = filters
 	)
-	return transactions
 
 @frappe.whitelist()
 def get_account_balance(bank_account, till_date):
@@ -61,10 +61,8 @@ def get_account_balance(bank_account, till_date):
 
 	amounts_not_reflected_in_system = get_amounts_not_reflected_in_system(filters)
 
-	bank_bal = flt(balance_as_per_system) - flt(total_debit) + flt(total_credit) \
+	return flt(balance_as_per_system) - flt(total_debit) + flt(total_credit) \
 		+ amounts_not_reflected_in_system
-
-	return bank_bal
 
 
 @frappe.whitelist()
@@ -97,34 +95,23 @@ def create_journal_entry_bts( bank_transaction_name, reference_number=None, refe
 	)[0]
 	company_account = frappe.get_value("Bank Account", bank_transaction.bank_account, "account")
 	account_type = frappe.db.get_value("Account", second_account, "account_type")
-	if account_type in ["Receivable", "Payable"]:
-		if not (party_type and party):
-			frappe.throw(_("Party Type and Party is required for Receivable / Payable account {0}").format( second_account))
-	accounts = []
-	# Multi Currency?
-	accounts.append({
-			"account": second_account,
-			"credit_in_account_currency": bank_transaction.deposit
-				if  bank_transaction.deposit > 0
-				else 0,
-			"debit_in_account_currency":bank_transaction.withdrawal
-				if  bank_transaction.withdrawal > 0
-				else 0,
-			"party_type":party_type,
-			"party":party,
-		})
-
-	accounts.append({
-			"account": company_account,
-			"bank_account": bank_transaction.bank_account,
-			"credit_in_account_currency": bank_transaction.withdrawal
-				if  bank_transaction.withdrawal > 0
-				else 0,
-			"debit_in_account_currency":bank_transaction.deposit
-				if  bank_transaction.deposit > 0
-				else 0,
-		})
-
+	if account_type in ["Receivable", "Payable"] and not (party_type and party):
+		frappe.throw(_("Party Type and Party is required for Receivable / Payable account {0}").format( second_account))
+	accounts = [
+	    {
+	        "account": second_account,
+	        "credit_in_account_currency": max(bank_transaction.deposit, 0),
+	        "debit_in_account_currency": max(bank_transaction.withdrawal, 0),
+	        "party_type": party_type,
+	        "party": party,
+	    },
+	    {
+	        "account": company_account,
+	        "bank_account": bank_transaction.bank_account,
+	        "credit_in_account_currency": max(bank_transaction.withdrawal, 0),
+	        "debit_in_account_currency": max(bank_transaction.deposit, 0),
+	    },
+	]
 	company = frappe.get_value("Account", company_account, "company")
 
 	journal_entry_dict = {
@@ -259,8 +246,7 @@ def get_linked_payments(bank_transaction_name, document_types = None):
 		["account", "company"],
 		as_dict=True)[0]
 	(account, company) = (bank_account.account, bank_account.company)
-	matching = check_matching(account, company, transaction, document_types)
-	return matching
+	return check_matching(account, company, transaction, document_types)
 
 def check_matching(bank_account, company, transaction, document_types):
 	# combine all types of vouchers

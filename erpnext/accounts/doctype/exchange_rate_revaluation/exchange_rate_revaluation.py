@@ -40,10 +40,7 @@ class ExchangeRateRevaluation(Document):
 			'docstatus': 1
 		}, "sum(debit) as sum")
 
-		total_amt = 0
-		for d in self.accounts:
-			total_amt = total_amt + d.new_balance_in_base_currency
-
+		total_amt = sum(d.new_balance_in_base_currency for d in self.accounts)
 		if total_amt != total_debit:
 			return True
 
@@ -95,9 +92,8 @@ class ExchangeRateRevaluation(Document):
 				and account_currency != %s
 			order by name""",(self.company, company_currency))
 
-		account_details = []
-		if accounts:
-			account_details = frappe.db.sql("""
+		return (frappe.db.sql(
+		    """
 				select
 					account, party_type, party, account_currency,
 					sum(debit_in_account_currency) - sum(credit_in_account_currency) as balance_in_account_currency,
@@ -109,9 +105,11 @@ class ExchangeRateRevaluation(Document):
 				group by account, NULLIF(party_type,''), NULLIF(party,'')
 				having sum(debit) != sum(credit)
 				order by account
-			""" % (', '.join(['%s']*len(accounts)), '%s'), tuple(accounts + [self.posting_date]), as_dict=1)
-
-		return account_details
+			"""
+		    % (', '.join(['%s'] * len(accounts)), '%s'),
+		    tuple(accounts + [self.posting_date]),
+		    as_dict=1,
+		) if accounts else [])
 
 	def throw_invalid_response_message(self, account_details):
 		if account_details:
@@ -169,14 +167,21 @@ class ExchangeRateRevaluation(Document):
 				})
 
 		journal_entry_accounts.append({
-			"account": unrealized_exchange_gain_loss_account,
-			"balance": get_balance_on(unrealized_exchange_gain_loss_account),
-			"debit_in_account_currency": abs(self.total_gain_loss) if self.total_gain_loss < 0 else 0,
-			"credit_in_account_currency": self.total_gain_loss if self.total_gain_loss > 0 else 0,
-			"exchange_rate": 1,
-			"reference_type": "Exchange Rate Revaluation",
-			"reference_name": self.name,
-			})
+		    "account":
+		    unrealized_exchange_gain_loss_account,
+		    "balance":
+		    get_balance_on(unrealized_exchange_gain_loss_account),
+		    "debit_in_account_currency":
+		    abs(self.total_gain_loss) if self.total_gain_loss < 0 else 0,
+		    "credit_in_account_currency":
+		    max(self.total_gain_loss, 0),
+		    "exchange_rate":
+		    1,
+		    "reference_type":
+		    "Exchange Rate Revaluation",
+		    "reference_name":
+		    self.name,
+		})
 
 		journal_entry.set("accounts", journal_entry_accounts)
 		journal_entry.set_amounts_in_company_currency()

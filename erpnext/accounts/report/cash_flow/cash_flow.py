@@ -50,15 +50,13 @@ def execute(filters=None):
 			"account": cash_flow_account['section_header']
 		})
 
-		if len(data) == 1:
-			# add first net income in operations section
-			if net_profit_loss:
-				net_profit_loss.update({
-					"indent": 1,
-					"parent_account": cash_flow_accounts[0]['section_header']
-				})
-				data.append(net_profit_loss)
-				section_data.append(net_profit_loss)
+		if len(data) == 1 and net_profit_loss:
+			net_profit_loss.update({
+				"indent": 1,
+				"parent_account": cash_flow_accounts[0]['section_header']
+			})
+			data.append(net_profit_loss)
+			section_data.append(net_profit_loss)
 
 		for account in cash_flow_account['account_types']:
 			account_data = get_account_type_based_data(filters.company,
@@ -198,34 +196,30 @@ def add_total_row_account(out, data, label, period_list, currency, summary_data,
 
 
 def get_report_summary(summary_data, currency):
-	report_summary = []
-
-	for label, value in summary_data.items():
-		report_summary.append(
-			{
+	return [{
 				"value": value,
 				"label": label,
 				"datatype": "Currency",
 				"currency": currency
-			}
-		)
-
-	return report_summary
+			} for label, value in summary_data.items()]
 
 
 def get_chart_data(columns, data):
 	labels = [d.get("label") for d in columns[2:]]
-	datasets = [{'name':account.get('account').replace("'", ""), 'values': [account.get('total')]}  for account in data if account.get('parent_account') == None and account.get('currency')]
+	datasets = [
+	    {
+	        'name': account.get('account').replace("'", ""),
+	        'values': [account.get('total')],
+	    } for account in data
+	    if account.get('parent_account') is None and account.get('currency')
+	]
 	datasets = datasets[:-1]
 
-	chart = {
-		"data": {
-			'labels': labels,
-			'datasets': datasets
-		},
-		"type": "bar"
+	return {
+	    'data': {
+	        'labels': labels,
+	        'datasets': datasets
+	    },
+	    'type': 'bar',
+	    'fieldtype': 'Currency',
 	}
-
-	chart["fieldtype"] = "Currency"
-
-	return chart

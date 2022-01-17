@@ -53,12 +53,10 @@ class TestTaxWithholdingCategory(unittest.TestCase):
 			d.cancel()
 
 	def test_single_threshold_tds(self):
-		invoices = []
 		frappe.db.set_value("Supplier", "Test TDS Supplier1", "tax_withholding_category", "Single Threshold TDS")
 		pi = create_purchase_invoice(supplier = "Test TDS Supplier1", rate = 20000)
 		pi.submit()
-		invoices.append(pi)
-
+		invoices = [pi]
 		self.assertEqual(pi.taxes_and_charges_deducted, 2000)
 		self.assertEqual(pi.grand_total, 18000)
 
@@ -87,7 +85,6 @@ class TestTaxWithholdingCategory(unittest.TestCase):
 			d.cancel()
 
 	def test_tax_withholding_category_checks(self):
-		invoices = []
 		frappe.db.set_value("Supplier", "Test TDS Supplier3", "tax_withholding_category", "New TDS Category")
 
 		# First Invoice with no tds check
@@ -95,8 +92,7 @@ class TestTaxWithholdingCategory(unittest.TestCase):
 		pi.apply_tds = 0
 		pi.save()
 		pi.submit()
-		invoices.append(pi)
-
+		invoices = [pi]
 		# Second Invoice will apply TDS checked
 		pi1 = create_purchase_invoice(supplier = "Test TDS Supplier3", rate = 20000)
 		pi1.submit()
@@ -146,8 +142,6 @@ class TestTaxWithholdingCategory(unittest.TestCase):
 
 	def test_tds_calculation_on_net_total(self):
 		frappe.db.set_value("Supplier", "Test TDS Supplier4", "tax_withholding_category", "Cumulative Threshold TDS")
-		invoices = []
-
 		pi = create_purchase_invoice(supplier = "Test TDS Supplier4", rate = 20000, do_not_save=True)
 		pi.append('taxes', {
 			"category": "Total",
@@ -161,8 +155,7 @@ class TestTaxWithholdingCategory(unittest.TestCase):
 		})
 		pi.save()
 		pi.submit()
-		invoices.append(pi)
-
+		invoices = [pi]
 		# Second Invoice will apply TDS checked
 		pi1 = create_purchase_invoice(supplier = "Test TDS Supplier4", rate = 20000)
 		pi1.submit()
@@ -176,14 +169,11 @@ class TestTaxWithholdingCategory(unittest.TestCase):
 
 	def test_multi_category_single_supplier(self):
 		frappe.db.set_value("Supplier", "Test TDS Supplier5", "tax_withholding_category", "Test Service Category")
-		invoices = []
-
 		pi = create_purchase_invoice(supplier = "Test TDS Supplier5", rate = 500, do_not_save=True)
 		pi.tax_withholding_category = "Test Service Category"
 		pi.save()
 		pi.submit()
-		invoices.append(pi)
-
+		invoices = [pi]
 		# Second Invoice will apply TDS checked
 		pi1 = create_purchase_invoice(supplier = "Test TDS Supplier5", rate = 2500, do_not_save=True)
 		pi1.tax_withholding_category = "Test Goods Category"

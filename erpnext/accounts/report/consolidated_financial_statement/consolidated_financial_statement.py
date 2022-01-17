@@ -186,15 +186,13 @@ def get_cash_flow_data(fiscal_year, companies, filters):
 			"account": cash_flow_account['section_header']
 		})
 
-		if len(data) == 1:
-			# add first net income in operations section
-			if net_profit_loss:
-				net_profit_loss.update({
-					"indent": 1,
-					"parent_account": cash_flow_accounts[0]['section_header']
-				})
-				data.append(net_profit_loss)
-				section_data.append(net_profit_loss)
+		if len(data) == 1 and net_profit_loss:
+			net_profit_loss.update({
+				"indent": 1,
+				"parent_account": cash_flow_accounts[0]['section_header']
+			})
+			data.append(net_profit_loss)
+			section_data.append(net_profit_loss)
 
 		for account in cash_flow_account['account_types']:
 			account_data = get_account_type_based_data(account['account_type'], companies, fiscal_year, filters)
@@ -609,7 +607,7 @@ def filter_accounts(accounts, depth=10):
 	def add_to_list(parent, level):
 		if level < depth:
 			children = parent_children_map.get(parent) or []
-			sort_accounts(children, is_root=True if parent==None else False)
+			sort_accounts(children, is_root=parent is None)
 
 			for child in children:
 				child.indent = level
